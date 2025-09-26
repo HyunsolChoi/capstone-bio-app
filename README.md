@@ -88,9 +88,9 @@ app/
 
 ---
 
-## 라이선스
+## 참고
 
-라이선스는 추후 공개 예정입니다.  
-별도 문의: <vnvndldl@naver.com>
+.firebaserc 의 projects.default는 Project ID
 
+functions/src/index.ts의 serviceKey는 공공데이터포털 decoded key 
 ---
