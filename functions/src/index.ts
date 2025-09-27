@@ -31,8 +31,9 @@ const db = getFirestore("kesco-bio-app");
 // 3. 스케줄링 함수 정의
 export const updateWeatherData = onSchedule(
   {
-    // 스케줄: 매시 50분에 실행 (API 데이터가 안정적으로 생성된 후)
-    schedule: "50 * * * *",
+    // 스케줄: 매시 47분에 실행 (API 데이터가 안정적으로 생성된 후)
+    // 기상청 api 제공은 매시 45분
+    schedule: "47 * * * *",
     timeoutSeconds: 60,
   },
   async (event) => {
@@ -41,15 +42,30 @@ export const updateWeatherData = onSchedule(
     // API 요청에 필요한 base_date와 base_time을 안정적으로 계산합니다.
     const now = new Date();
     const kstOffset = 9 * 60 * 60 * 1000;
-    const kstNow = new Date(now.getTime() + kstOffset);
+    let kstNow = new Date(now.getTime() + kstOffset);
 
-    const baseDate = kstNow.toISOString().slice(0, 10).replace(/-/g, "");
-    const baseTime = `${kstNow.toISOString().slice(11, 13)}30`;
+    // 현재 분(minute)을 확인합니다.
+    const currentMinutes = kstNow.getMinutes();
+
+    // 47분 이전에 실행될 경우(0~46분), 기준 시간을 한 시간 전으로 조정
+    // 이는 스케줄러가 아닌 다른 이유로 함수가 실행될 경우를 대비한 방어 코드
+    if (currentMinutes < 47) {
+      // kstNow에서 1시간을 뺍니다.
+      kstNow.setHours(kstNow.getHours() - 1);
+    }
+
+    // ISO 문자열로 변환합니다. 자정이 막 지난 시점에 시간을 뺐을 경우 날짜가 어제로 바뀌는 것을 처리
+    const isoString = kstNow.toISOString();
+
+    const baseDate = isoString.slice(0, 10).replace(/-/g, "");
+    const baseTime = `${isoString.slice(11, 13)}30`;
 
     // 추후 GPS데이터 기반하여 csv로 nx, ny 추출토록 해야함.
-    const nx = "55";
-    const ny = "127";
+    // 기본값은 본사 (완주군 이서면)
+    const nx = "61";
+    const ny = "89";
 
+    // 공공데이터포털 기상청api 초단기예보 사용
     const url = `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst?dataType=json&serviceKey=${serviceKey.value()}&numOfRows=60&pageNo=1&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
 
     logger.info(`요청 URL: ${url}`);
