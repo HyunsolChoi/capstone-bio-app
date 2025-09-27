@@ -25,8 +25,8 @@ class LoginViewModel @Inject constructor(
     val state: StateFlow<LoginState> = _state
 
     /** 로그인 버튼 클릭 시 호출 */
-    fun login(dept: String, name: String, dob: String) {
-        if (dept.isBlank() || name.isBlank() || dob.isBlank()) {
+    fun login(name: String, Enum: String) {
+        if (name.isBlank() || Enum.isBlank()) {
             _state.value = LoginState.Error("모든 항목을 입력해주세요.")
             return
         }
@@ -34,7 +34,7 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = LoginState.Loading
             try {
-                repo.signInAndSaveProfile(dept, name, dob)
+                repo.signInAndSaveProfile(name, Enum)
                 _state.value = LoginState.Success
             } catch (e: Exception) {
                 _state.value = LoginState.Error(e.message ?: "로그인에 실패했습니다.")

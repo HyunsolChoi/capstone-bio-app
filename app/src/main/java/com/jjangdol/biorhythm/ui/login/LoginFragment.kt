@@ -46,23 +46,6 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentLoginBinding.bind(view)
 
-        // 부서 목록 설정
-        val depts = listOf("--부서 선택--", "생산", "품질", "안전", "관리")
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, depts)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.spinnerDept.adapter = adapter
-
-        // 생년월일 선택
-        binding.tvDob.setOnClickListener {
-            val today = LocalDate.now()
-            DatePickerDialog(requireContext(),
-                { _, y, m, d ->
-                    val dob = LocalDate.of(y, m + 1, d)
-                    binding.tvDob.text = dob.format(dateFormatter)
-                },
-                today.year, today.monthValue - 1, today.dayOfMonth
-            ).show()
-        }
 
         // 숨겨진 관리자 버튼 클릭 처리
         binding.btnHiddenAdmin.setOnClickListener {
@@ -85,11 +68,10 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
 
         // 로그인 버튼 클릭
         binding.btnLogin.setOnClickListener {
-            val dept = binding.spinnerDept.selectedItem?.toString() ?: ""
             val name = binding.etName.text.toString()
-            val dob = binding.tvDob.text.toString()
+            val Enum = binding.etEmployNum.text.toString()
 
-            performLogin(dept, name, dob)
+            performLogin(name, Enum)
         }
 
         // 상태 관찰
@@ -114,18 +96,13 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
         }
     }
 
-    private fun performLogin(dept: String, name: String, dob: String) {
-        // 입력 유효성 검사
-        if (dept == "--부서 선택--" || dept.isEmpty()) {
-            Toast.makeText(requireContext(), "부서를 선택해주세요", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun performLogin(name: String, Enum: String) {
         if (name.trim().isEmpty()) {
             Toast.makeText(requireContext(), "이름을 입력해주세요", Toast.LENGTH_SHORT).show()
             return
         }
-        if (dob.isEmpty() || dob == "생년월일을 선택하세요") {
-            Toast.makeText(requireContext(), "생년월일을 선택해주세요", Toast.LENGTH_SHORT).show()
+        if (Enum.trim().isEmpty()) {
+            Toast.makeText(requireContext(), "사원번호를 입력해주세요", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -136,18 +113,17 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                 binding.btnLogin.text = "로그인 중…"
 
                 // 1) UserRepository를 통해 사용자 프로필 저장/업데이트
-                userRepository.signInAndSaveProfile(dept, name, dob)
+                userRepository.signInAndSaveProfile(name, Enum)
 
                 // 2) SharedPreferences에도 저장 (앱 내에서 빠른 접근용)
                 val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
                 prefs.edit()
-                    .putString("dob", dob)
                     .putString("user_name", name)
-                    .putString("user_dept", dept)
+                    .putString("user_Enum", Enum)
                     .apply()
 
                 // 3) LoginViewModel을 통한 로그인 처리
-                vm.login(dept, name, dob)
+                vm.login(name, Enum)
 
             } catch (e: Exception) {
                 binding.btnLogin.isEnabled = true
