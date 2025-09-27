@@ -131,15 +131,5 @@
         tools:layout_editor_absoluteY="420dp" />
 
     <!-- 🔹 5. 숨겨진 관리자 버튼 (오른쪽 상단) -->
-    <Button
-        android:id="@+id/btnHiddenAdmin"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_marginTop="1dp"
-        android:layout_marginEnd="1dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="Admin Access"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
