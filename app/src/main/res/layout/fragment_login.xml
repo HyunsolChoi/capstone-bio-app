@@ -2,17 +2,19 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/loginRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="24dp">
 
-    <!-- 🔹 전기안전공사 로고 -->
+
+<!-- 🔹 전기안전공사 로고 -->
     <ImageView
         android:id="@+id/imgKesco"
         android:layout_width="110dp"
         android:layout_height="84dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="80dp"
         android:contentDescription="@string/logo"
         android:src="@drawable/ic_kesco"
         app:layout_constraintTop_toTopOf="parent"
@@ -20,127 +22,93 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- 🔹 1. 부서 선택 (아이콘 포함) -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/deptInputLayout"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginTop="32dp"
-        android:background="@drawable/rounded_box"
-        app:layout_constraintTop_toBottomOf="@id/imgKesco"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ImageView
-            android:id="@+id/ivDept"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginStart="12dp"
-            android:src="@drawable/ic_department"
-            android:contentDescription="@string/department_prompt"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-        <Spinner
-            android:id="@+id/spinnerDept"
-            android:textSize="14sp"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="8dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:spinnerMode="dropdown"
-            android:background="@android:color/transparent"
-            android:prompt="@string/department_prompt"
-            android:gravity="center_vertical"
-            app:layout_constraintStart_toEndOf="@id/ivDept"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- 🔹 2. 이름 입력 (아이콘 포함) -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/nameInputLayout"
+        android:id="@+id/NameLayout"
         android:layout_width="0dp"
         android:layout_height="56dp"
-        android:layout_marginTop="16dp"
         android:background="@drawable/rounded_box"
-        app:layout_constraintTop_toBottomOf="@id/deptInputLayout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/imgKesco"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintWidth_default="percent"
+        app:layout_constraintWidth_percent="0.85"
+        android:layout_marginTop="130dp"
+        tools:layout_editor_absoluteY="236dp">
 
         <ImageView
             android:id="@+id/ivPerson"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginStart="12dp"
-            android:src="@drawable/ic_person"
             android:contentDescription="@string/name_hint"
+            android:src="@drawable/ic_person"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintTop_toTopOf="parent" />
 
         <EditText
             android:id="@+id/etName"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="8dp"
+            android:autofillHints="name"
+            android:background="@android:color/transparent"
+            android:gravity="center_vertical"
+            android:hint="@string/name_hint"
+            android:inputType="textPersonName"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:background="@android:color/transparent"
-            android:hint="@string/name_hint"
             android:textSize="14sp"
-            android:inputType="textPersonName"
-            android:gravity="center_vertical"
-            android:autofillHints="name"
-            app:layout_constraintStart_toEndOf="@id/ivPerson"
-            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/ivPerson"
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 🔹 3. 생년월일 선택 (아이콘 포함) -->
+    <!-- 🔹 3. 사원번호 입력 (아이콘 포함) -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/dobInputLayout"
+        android:id="@+id/EmplyNumInputLayout"
         android:layout_width="0dp"
         android:layout_height="56dp"
-        android:layout_marginTop="16dp"
         android:background="@drawable/rounded_box"
-        app:layout_constraintTop_toBottomOf="@id/nameInputLayout"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/NameLayout"
+        app:layout_constraintWidth_default="percent"
+        app:layout_constraintWidth_percent="0.85"
+        android:layout_marginTop="15dp"
+        tools:layout_editor_absoluteY="320dp">
 
         <ImageView
-            android:id="@+id/ivCalendar"
+            android:id="@+id/ivEmployeeNum"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginStart="12dp"
-            android:src="@drawable/ic_calendar"
-            android:contentDescription="@string/dob_hint"
+            android:contentDescription="@string/Enum_hint"
+            android:src="@drawable/ic_person"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/tvDob"
-            android:textSize="14sp"
+        <EditText
+            android:id="@+id/etEmployNum"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="8dp"
+            android:autofillHints="Enum"
+            android:background="@android:color/transparent"
+            android:gravity="center_vertical"
+            android:hint="@string/Enum_hint"
+            android:inputType="number"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:gravity="center_vertical"
-            android:hint="@string/dob_hint"
-            android:focusable="true"
-            android:clickable="true"
-            android:textColor="@android:color/black"
-            android:textColorHint="@android:color/darker_gray"
-            android:background="@android:color/transparent"
-            app:layout_constraintStart_toEndOf="@id/ivCalendar"
-            app:layout_constraintTop_toTopOf="parent"
+            android:textSize="14sp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/ivEmployeeNum"
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- 🔹 4. 로그인 버튼 -->
@@ -148,16 +116,19 @@
         android:id="@+id/btnLogin"
         android:layout_width="0dp"
         android:layout_height="56dp"
-        android:layout_marginTop="32dp"
         android:text="@string/login"
+        android:textColor="@color/white"
         android:textSize="16sp"
         android:textStyle="bold"
-        app:cornerRadius="12dp"
-        app:layout_constraintTop_toBottomOf="@id/dobInputLayout"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:backgroundTint="#009FDA"
-        android:textColor="@color/white" />
+        app:cornerRadius="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/EmplyNumInputLayout"
+        app:layout_constraintWidth_default="percent"
+        app:layout_constraintWidth_percent="0.85"
+        android:layout_marginTop="24dp"
+        tools:layout_editor_absoluteY="420dp" />
 
     <!-- 🔹 5. 숨겨진 관리자 버튼 (오른쪽 상단) -->
     <Button
@@ -170,4 +141,5 @@
         android:contentDescription="Admin Access"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

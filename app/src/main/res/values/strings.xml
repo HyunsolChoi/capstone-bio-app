@@ -3,6 +3,6 @@
     <string name="logo">전기안전공사 로고</string>
     <string name="department_prompt">부서를 선택하세요</string>
     <string name="name_hint">이름</string>
-    <string name="dob_hint">생년월일 선택</string>
+    <string name="Enum_hint">사원번호</string>
     <string name="login">로그인</string>
 </resources>

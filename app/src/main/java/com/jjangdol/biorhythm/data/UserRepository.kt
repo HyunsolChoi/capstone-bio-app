@@ -9,7 +9,7 @@ import javax.inject.Inject
 data class UserProfile(
     val dept: String = "",
     val name: String = "",
-    val dob: String = ""  // "yyyy-MM-dd" 형식
+    val Enum: String = ""
 )
 
 class UserRepository @Inject constructor(
@@ -18,16 +18,16 @@ class UserRepository @Inject constructor(
 ) {
 
     /** 사용자 정보를 기반으로 고유 ID 생성 */
-    private fun generateUserId(dept: String, name: String, dob: String): String {
-        val input = "$dept-$name-$dob"
+    private fun generateUserId(name: String, Enum: String): String {
+        val input = "$name-$Enum"
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
     /** 사용자 정보 기반으로 로그인 후 프로필 저장 */
-    suspend fun signInAndSaveProfile(dept: String, name: String, dob: String) {
+    suspend fun signInAndSaveProfile(name: String, Enum: String) {
         // 1) 사용자 정보 기반 고유 ID 생성
-        val userId = generateUserId(dept, name, dob)
+        val userId = generateUserId(name, Enum)
 
         // 2) 기존 사용자 확인
         val existingUser = db.collection("users")
@@ -36,7 +36,7 @@ class UserRepository @Inject constructor(
             .await()
 
         // 3) 사용자 프로필 생성/업데이트
-        val profile = UserProfile(dept, name, dob)
+        val profile = UserProfile(name, Enum)
 
         if (existingUser.exists()) {
             // 기존 사용자 - 정보 업데이트 (필요시)
@@ -54,8 +54,8 @@ class UserRepository @Inject constructor(
     }
 
     /** 현재 사용자 프로필 가져오기 */
-    suspend fun getCurrentUserProfile(dept: String, name: String, dob: String): UserProfile? {
-        val userId = generateUserId(dept, name, dob)
+    suspend fun getCurrentUserProfile(name: String, Enum: String): UserProfile? {
+        val userId = generateUserId(name, Enum)
         val document = db.collection("users")
             .document(userId)
             .get()
@@ -69,7 +69,7 @@ class UserRepository @Inject constructor(
     }
 
     /** 사용자 ID 가져오기 */
-    fun getUserId(dept: String, name: String, dob: String): String {
-        return generateUserId(dept, name, dob)
+    fun getUserId(name: String, Enum: String): String {
+        return generateUserId(name, Enum)
     }
 }
