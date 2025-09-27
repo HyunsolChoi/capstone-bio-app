@@ -21,9 +21,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- 🔹 1. 부서 선택 (아이콘 포함) -->
-
-    <!-- 🔹 2. 이름 입력 (아이콘 포함) -->
+    <!-- 🔹 1. 이름 입력 (아이콘 포함) -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/NameLayout"
         android:layout_width="0dp"
@@ -67,7 +65,7 @@
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 🔹 3. 사원번호 입력 (아이콘 포함) -->
+    <!-- 🔹 2. 사원번호 입력 (아이콘 포함) -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/EmplyNumInputLayout"
         android:layout_width="0dp"
@@ -111,7 +109,7 @@
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 🔹 4. 로그인 버튼 -->
+    <!-- 🔹 3. 로그인 버튼 -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnLogin"
         android:layout_width="0dp"
@@ -130,6 +128,6 @@
         android:layout_marginTop="24dp"
         tools:layout_editor_absoluteY="420dp" />
 
-    <!-- 🔹 5. 숨겨진 관리자 버튼 (오른쪽 상단) -->
+<!--     🔹 5. 숨겨진 관리자 버튼 (오른쪽 상단) (일단 삭제)-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

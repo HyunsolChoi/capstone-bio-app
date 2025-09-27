@@ -10,7 +10,14 @@
         <item name="colorSurface">@color/white</item>
         <item name="colorOnSurface">@color/black</item>
 
+         상단바 색상 흰 색
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+
         <!-- 필요하면 추가로 shape, typography 등 정의 가능 -->
+
+       <!--  상태바 숨김 (풀스크린)
+        <item name="android:windowFullscreen">true</item>-->
     </style>
 
 </resources>
