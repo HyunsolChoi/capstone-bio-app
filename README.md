@@ -90,7 +90,9 @@ app/
 
 ## 참고
 
+
 .firebaserc 의 projects.default는 Project ID
 
-functions/src/index.ts의 serviceKey는 공공데이터포털 decoded key 
+firebase functions:config:set weather.service_key="공공데이터포털서비스키"
+
 ---
