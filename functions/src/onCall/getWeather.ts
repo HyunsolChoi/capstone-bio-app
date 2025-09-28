@@ -1,9 +1,7 @@
 import * as admin from "firebase-admin";
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { setGlobalOptions } from "firebase-functions/v2";
 import * as logger from "firebase-functions/logger";
-import { getFirestore } from "firebase-admin/firestore";
 import { defineSecret } from "firebase-functions/params";
 import fetch from "node-fetch";
 

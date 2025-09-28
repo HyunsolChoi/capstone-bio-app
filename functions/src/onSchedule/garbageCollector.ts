@@ -16,52 +16,57 @@ export const garbageCollector = onSchedule("0 * * * *", async () => {
   const kstOffset = 9 * 60 * 60 * 1000;
   const kstNow = new Date(now.getTime() + kstOffset);
 
-  // 2시간 전 시간 계산 (날짜 변경을 자동으로 처리)
+  // 2시간 전 시간 계산
   const twoHoursAgo = new Date(kstNow.getTime());
   twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
 
-  // 2. 2시간 전의 baseDate와 baseTime을 계산합니다.
+  // 2. 2시간 전의 baseDate를 계산합니다.
   const limitDate = twoHoursAgo.toISOString().slice(0, 10).replace(/-/g, "");
-  const limitHours = String(twoHoursAgo.getHours()).padStart(2, "0");
-
-  logger.info(`[GarbageCollector] 삭제 기준 시간: ${limitDate} ${limitHours}:00 이전 데이터`);
 
   try {
-    // 3. 삭제할 데이터를 쿼리합니다.
-    // baseDate가 기준 날짜보다 작거나,
-    // baseDate가 같으면서 baseTime의 시간(HH) 부분이 기준 시간보다 작은 문서를 찾습니다.
-    const oldWeatherDataQuery = db.collection("weather")
-      .where("baseDate", "<", limitDate);
+    // Firestore 일괄 쓰기(Batch Write)를 준비합니다.
+    const batch = db.batch();
+    let deleteCount = 0;
 
-    const sameDayOldWeatherDataQuery = db.collection("weather")
-      .where("baseDate", "==", limitDate)
-      .where("baseTime", "<", `${limitHours}00`); // baseTime은 HHmm 형식이므로 HH00과 비교
+    const olderDaysQuery = db.collection("weather").where("baseDate", "<", limitDate);
+    const olderDaysSnapshots = await olderDaysQuery.get();
 
-    // 4. 두 쿼리 결과를 가져와 삭제 작업을 수행합니다.
-    const [oldSnapshots, sameDayOldSnapshots] = await Promise.all([
-      oldWeatherDataQuery.get(),
-      sameDayOldWeatherDataQuery.get()
-    ]);
+    olderDaysSnapshots.forEach(doc => {
+      batch.delete(doc.ref);
+      deleteCount++;
+    });
 
-    if (oldSnapshots.empty && sameDayOldSnapshots.empty) {
+    if (deleteCount > 0) {
+      logger.log(`[GarbageCollector] ${limitDate} 이전 날짜 데이터 ${deleteCount}건을 삭제 목록에 추가했습니다.`);
+    }
+
+    // 기준일과 같은 날짜의 모든 문서를 가져와서 코드 내에서 시간(HH)을 비교합니다.
+    const sameDayQuery = db.collection("weather").where("baseDate", "==", limitDate);
+    const sameDaySnapshots = await sameDayQuery.get();
+
+    let sameDayDeleteCount = 0;
+    const limitHours = String(twoHoursAgo.getHours()).padStart(2, "0");
+
+    sameDaySnapshots.forEach(doc => {
+      const data = doc.data();
+      // baseTime의 앞 두 글자(시간)가 삭제 기준 시간보다 작으면 삭제 대상
+      if (data.baseTime && data.baseTime.substring(0, 2) < limitHours) {
+        batch.delete(doc.ref);
+        sameDayDeleteCount++;
+      }
+    });
+
+    if (sameDayDeleteCount > 0) {
+      logger.log(`[GarbageCollector] ${limitDate} 당일 데이터 중 ${sameDayDeleteCount}건을 삭제 목록에 추가했습니다.`);
+      deleteCount += sameDayDeleteCount;
+    }
+
+    if (deleteCount === 0) {
       logger.log("[GarbageCollector] 삭제할 오래된 데이터가 없습니다.");
       return;
     }
 
-    // Firestore 일괄 쓰기(Batch Write)를 사용하여 여러 문서를 한 번에 삭제합니다.
-    const batch = db.batch();
-    let deleteCount = 0;
-
-    oldSnapshots.forEach(doc => {
-      batch.delete(doc.ref);
-      deleteCount++;
-    });
-    sameDayOldSnapshots.forEach(doc => {
-      batch.delete(doc.ref);
-      deleteCount++;
-    });
-
-    // 5. 일괄 삭제 실행
+    // 4. 일괄 삭제 실행
     await batch.commit();
     logger.log(`[GarbageCollector] 총 ${deleteCount}개의 오래된 날씨 데이터를 성공적으로 삭제했습니다.`);
 
