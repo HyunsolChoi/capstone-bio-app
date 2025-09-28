@@ -138,10 +138,10 @@ class HistoryFragment : Fragment(R.layout.fragment_history) {
         val dept = prefs.getString("user_dept", "") ?: ""
         val name = prefs.getString("user_name", "") ?: ""
         val dob = prefs.getString("dob", "") ?: ""
-        val Enum = prefs.getString("user_Enum", "") ?: ""
+        val empNum = prefs.getString("user_empNum", "") ?: ""
 
         return if (dept.isNotEmpty() && name.isNotEmpty() && dob.isNotEmpty()) {
-            userRepository.getUserId(name, Enum)
+            userRepository.getUserId(name, empNum)
         } else {
             null
         }

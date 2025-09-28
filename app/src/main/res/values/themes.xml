@@ -10,7 +10,7 @@
         <item name="colorSurface">@color/white</item>
         <item name="colorOnSurface">@color/black</item>
 
-         상단바 색상 흰 색
+         <!--상단바 색상 흰 색-->
         <item name="android:statusBarColor">@color/white</item>
         <item name="android:windowLightStatusBar">true</item>
 
