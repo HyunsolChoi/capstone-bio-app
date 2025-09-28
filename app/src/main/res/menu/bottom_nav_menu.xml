@@ -13,4 +13,8 @@
         android:id="@+id/resultFragment"
         android:icon="@drawable/ic_results"
         android:title="결과창" />
+    <item
+        android:id="@+id/weatherFragment"
+        android:icon="@drawable/ic_weather"
+        android:title="기상정보" />
 </menu>

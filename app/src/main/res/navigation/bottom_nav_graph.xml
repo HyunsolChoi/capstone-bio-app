@@ -50,6 +50,12 @@
             app:destination="@id/historyFragment" />
     </fragment>
 
+    <!-- 4) 기상 정보 -->
+    <fragment
+        android:id="@+id/weatherFragment"
+        android:name="com.jjangdol.biorhythm.ui.weather.WeatherFragment"
+        android:label="기상 정보" />
+
     <!-- 5) 기록 보기 -->
     <fragment
         android:id="@+id/historyFragment"
