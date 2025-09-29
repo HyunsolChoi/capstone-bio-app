@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
+    android:background="@color/background_color"
     tools:context=".ui.weather.WeatherFragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -24,30 +25,63 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <TextView
-                android:id="@+id/tvLocation"
+            <LinearLayout
+                android:id="@+id/userGreetLayout"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="서울시 종로구"
-                android:textSize="18sp"
-                android:textStyle="bold"/>
+                android:layout_gravity="center"
+                android:orientation="horizontal"
+                android:paddingStart="20dp">
 
-            <TextView
-                android:id="@+id/tvUpdated"
+                <!-- 사용자 이름 부분-->
+                <TextView
+                    android:id="@+id/tvUserName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="홍길동"
+                    android:textColor="@color/text_primary"
+                    android:textSize="24sp"
+                    android:textStyle="bold"/>
+
+                <!-- “님, 환영합니다”-->
+                <TextView
+                    android:id="@+id/tvWelcome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:text="님, 환영합니다"
+                    android:textSize="20sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/refreshLayout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="업데이트: --:--"
-                android:textSize="12sp"
-                android:paddingEnd="8dp"/>
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRefresh"
-                style="?attr/materialButtonOutlinedStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="새로고침"
-                app:cornerRadius="12dp"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRefresh"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="새로고침"
+                    android:textSize="15sp"
+                    android:textColor="@android:color/white"
+                    android:gravity="center"
+                    app:cornerRadius="12dp"
+                    app:backgroundTint="#2196F3"/>
+
+
+                <TextView
+                    android:id="@+id/tvUpdated"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="업데이트: --:--"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- 현재 날씨 카드 -->
@@ -77,11 +111,12 @@
                     android:paddingStart="12dp">
 
                     <TextView
-                        android:id="@+id/tvLocation2"
+                        android:id="@+id/tvLocation"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="서울시 종로구"
+                        android:textColor="@color/text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold"/>
 
@@ -90,6 +125,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="26°"
+                        android:textColor="@color/text_primary"
                         android:textSize="32sp"
                         android:textStyle="bold"/>
 
@@ -98,6 +134,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="맑음 · 체감온도 27°"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"/>
                 </LinearLayout>
 
@@ -119,6 +156,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="습도 55%"
+                        android:textColor="@color/text_primary"
                         android:textSize="12sp"/>
 
                     <TextView
@@ -126,6 +164,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="강수 0mm"
+                        android:textColor="@color/text_primary"
                         android:textSize="12sp"/>
                 </LinearLayout>
             </LinearLayout>

@@ -3,6 +3,7 @@ package com.jjangdol.biorhythm.ui.weather
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
@@ -78,7 +79,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                     val name = withContext(Dispatchers.IO) { reverseGeocodeToShortName(loc.latitude, loc.longitude) } //지명을 얻지 못하면 위도(latitude),경도(longitude) 얻음
                     val display = name ?: "(${String.format(Locale.US, "%.4f", loc.latitude)}, ${String.format(Locale.US, "%.4f", loc.longitude)})"
                     binding.tvLocation.text  = display
-                    binding.tvLocation2.text = display
                 }
             }
             .addOnFailureListener { Toast.makeText(requireContext(), "위치 조회 실패", Toast.LENGTH_SHORT).show() }
@@ -134,7 +134,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             }
             val display = name ?: "(${lat.f(4)}, ${lon.f(4)})"
             binding.tvLocation.text  = display
-            binding.tvLocation2.text = display
         }
     }
 
@@ -198,7 +197,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     /** 최초 한 번 기본값 (권한 거부/지오코더 실패 대비) : 일단 하드코딩*/
     private fun bindDummyWeatherOnce() {
         binding.tvLocation.text  = "현재 위치"
-        binding.tvLocation2.text = "현재 위치"
         binding.tvUpdated.text   = "업데이트: --:--"
 
         binding.ivNowIcon.setImageResource(R.drawable.ic_weather) // 임시 아이콘
@@ -242,6 +240,24 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         _binding = null
     }
 
+    /** 환영문구 */
+    private fun greetUser()
+    {
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val name = prefs.getString("user_name", null)
+
+        if (!name.isNullOrBlank())
+        {
+            binding.tvUserName.text = name
+            binding.tvWelcome.text = "님, 환영합니다"
+        }
+        else
+        {
+            binding.tvUserName.text = ""
+            binding.tvWelcome.text = "환영합니다"
+        }
+    }
+
     // 소수점 포맷 헬퍼
     private fun Double.f(d: Int) = String.format(Locale.US, "%.${d}f", this)
 
@@ -252,6 +268,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
         fused = LocationServices.getFusedLocationProviderClient(requireContext())
 
+        //유저환영
+        greetUser()
         // 초기 더미 바인딩
         bindDummyWeatherOnce()
         // 현재 위치명 시도

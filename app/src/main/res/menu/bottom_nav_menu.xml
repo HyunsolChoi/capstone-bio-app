@@ -2,6 +2,10 @@
 <menu xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:android="http://schemas.android.com/apk/res/android">
     <item
+        android:id="@+id/weatherFragment"
+        android:icon="@drawable/ic_weather"
+        android:title="기상정보" />
+    <item
         android:id="@+id/notificationFragment"
         android:icon="@drawable/ic_notifications"
         android:title="알림" />
@@ -13,8 +17,4 @@
         android:id="@+id/resultFragment"
         android:icon="@drawable/ic_results"
         android:title="결과창" />
-    <item
-        android:id="@+id/weatherFragment"
-        android:icon="@drawable/ic_weather"
-        android:title="기상정보" />
 </menu>
