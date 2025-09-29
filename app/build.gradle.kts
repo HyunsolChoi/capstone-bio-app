@@ -143,6 +143,8 @@ dependencies {
 
     implementation("com.github.wendykierp:JTransforms:3.1")
     implementation("com.google.code.gson:gson:2.10.1")
+
+    implementation("com.google.android.gms:play-services-location:21.2.0")
 }
 
 kapt { correctErrorTypes = true }
