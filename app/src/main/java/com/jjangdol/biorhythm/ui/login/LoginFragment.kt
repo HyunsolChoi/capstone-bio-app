@@ -18,7 +18,8 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentLoginBinding.bind(view)
-        functions = FirebaseFunctions.getInstance()
+        functions = FirebaseFunctions.getInstance("asia-northeast3")
+
 
         binding.btnLogin.setOnClickListener {
             val name = binding.etName.text.toString().trim()
