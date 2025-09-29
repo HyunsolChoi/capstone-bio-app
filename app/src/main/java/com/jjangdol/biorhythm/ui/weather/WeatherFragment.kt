@@ -2,9 +2,11 @@
 package com.jjangdol.biorhythm.ui.weather
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
+import android.location.Location
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -46,6 +48,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     }
 
     /** 사용자의 위치 권한이 확인되면 → 허용 시 위치 조회 */
+    @SuppressLint("MissingPermission")
     private fun updateLocationName()
     {
         val fine = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
@@ -82,6 +85,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     }
 
     /** 기기의 최근 위치가 확인이 안 된다면, 대체(백업) 경로 가져오기 */
+    @SuppressLint("MissingPermission")
     private fun fetchCurrentLocationFallback()
     {
         currentLocCts?.cancel() //이전 위치 요청을 관리하는 취소 토큰
@@ -103,6 +107,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     }
 
     /** 마지막으로 저장된 기기의 위치로 주소명 갱신 */
+    @SuppressLint("MissingPermission")
     private fun fetchLastLocationAndUpdateUI()
     {
         fused.lastLocation

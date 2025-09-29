@@ -80,7 +80,11 @@ export const getWeatherData = onCall({ secrets: [serviceKey] }, async (request) 
     // 캐시 확인 중 에러가 발생해도 API 호출은 시도하도록 넘어감
   }
 
-  // 4. 기상청 API 호출
+
+  // 공공데이터포털 기상청api 초단기예보 사용
+  // const url = `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst?dataType=json&serviceKey=${serviceKey.value()}&numOfRows=60&pageNo=1&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
+
+  // 기상청 API 호출 (api 허브 대체)
   const url = `https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtFcst?dataType=json&authKey=${serviceKey.value()}&numOfRows=60&pageNo=1&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
   logger.info(`API 요청 URL: ${url}`);
 
