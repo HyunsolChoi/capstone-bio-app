@@ -1,78 +1,89 @@
-import * as admin from "firebase-admin";
+// src/onSchedule/garbageCollector.ts
+
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
-
-const db = admin.firestore();
+// index.ts로부터 공유된 db 인스턴스를 가져옵니다.
+import { db } from "../index";
 
 /**
  * 2시간 이상 지난 오래된 날씨 데이터를 Firestore에서 삭제하는 스케줄 함수
  * 매 시 정각에 동작
  */
 export const garbageCollector = onSchedule("0 * * * *", async () => {
+  // ... 이하 코드는 이전과 동일하게 유지 ...
   logger.info("[GarbageCollector] 오래된 날씨 데이터 삭제 작업 시작");
 
-  // 1. 현재 KST(한국 표준시)를 기준으로 2시간 전 시간을 계산합니다.
-  const now = new Date();
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstNow = new Date(now.getTime() + kstOffset);
-
-  // 2시간 전 시간 계산
-  const twoHoursAgo = new Date(kstNow.getTime());
-  twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
-
-  // 2. 2시간 전의 baseDate를 계산합니다.
-  const limitDate = twoHoursAgo.toISOString().slice(0, 10).replace(/-/g, "");
-
   try {
-    // Firestore 일괄 쓰기(Batch Write)를 준비합니다.
-    const batch = db.batch();
-    let deleteCount = 0;
+    const now = new Date();
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const kstNow = new Date(now.getTime() + kstOffset);
 
-    const olderDaysQuery = db.collection("weather").where("baseDate", "<", limitDate);
-    const olderDaysSnapshots = await olderDaysQuery.get();
+    const twoHoursAgo = new Date(kstNow);
+    twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
 
-    olderDaysSnapshots.forEach(doc => {
-      batch.delete(doc.ref);
-      deleteCount++;
-    });
-
-    if (deleteCount > 0) {
-      logger.log(`[GarbageCollector] ${limitDate} 이전 날짜 데이터 ${deleteCount}건을 삭제 목록에 추가했습니다.`);
-    }
-
-    // 기준일과 같은 날짜의 모든 문서를 가져와서 코드 내에서 시간(HH)을 비교합니다.
-    const sameDayQuery = db.collection("weather").where("baseDate", "==", limitDate);
-    const sameDaySnapshots = await sameDayQuery.get();
-
-    let sameDayDeleteCount = 0;
+    const limitDate = twoHoursAgo.toISOString().slice(0, 10).replace(/-/g, "");
     const limitHours = String(twoHoursAgo.getHours()).padStart(2, "0");
 
-    sameDaySnapshots.forEach(doc => {
+    logger.info(`[GarbageCollector] 삭제 기준 시간: ${limitDate} ${limitHours}00`);
+
+    const batch = db.batch();
+    let totalDeleteCount = 0;
+
+    const allDocsQuery = db.collection("weather");
+    const allDocsSnapshots = await allDocsQuery.get();
+
+    if (allDocsSnapshots.empty) {
+      logger.error("[GarbageCollector] 'weather' 컬렉션에 문서가 전혀 없습니다. DB 인스턴스나 컬렉션 이름을 다시 확인하세요.");
+      return;
+    }
+
+    logger.info(`[GarbageCollector] 총 ${allDocsSnapshots.size}개의 문서를 확인합니다.`);
+
+    const limitDateNumber = Number(limitDate);
+    const limitHoursNumber = Number(limitHours);
+
+    allDocsSnapshots.forEach(doc => {
       const data = doc.data();
-      // baseTime의 앞 두 글자(시간)가 삭제 기준 시간보다 작으면 삭제 대상
-      if (data.baseTime && data.baseTime.substring(0, 2) < limitHours) {
+
+      if (!data.baseDate || !data.baseTime) {
+        logger.warn(`[GarbageCollector] 문서 ${doc.id}에 baseDate 또는 baseTime 필드가 없습니다. 건너뜁니다.`);
+        return;
+      }
+
+      const docDateNumber = Number(data.baseDate);
+      const docHoursNumber = Number(data.baseTime.substring(0, 2));
+
+      let isTarget = false;
+
+      if (docDateNumber < limitDateNumber) {
+        isTarget = true;
+        logger.debug(`[삭제 대상] 문서 ${doc.id}의 날짜(${docDateNumber})가 기준일(${limitDateNumber})보다 이전입니다.`);
+      }
+      else if (docDateNumber === limitDateNumber && docHoursNumber < limitHoursNumber) {
+        isTarget = true;
+        logger.debug(`[삭제 대상] 문서 ${doc.id}의 날짜는 같지만 시간(${docHoursNumber})이 기준 시간(${limitHoursNumber})보다 이전입니다.`);
+      }
+
+      if (isTarget) {
         batch.delete(doc.ref);
-        sameDayDeleteCount++;
+        totalDeleteCount++;
       }
     });
 
-    if (sameDayDeleteCount > 0) {
-      logger.log(`[GarbageCollector] ${limitDate} 당일 데이터 중 ${sameDayDeleteCount}건을 삭제 목록에 추가했습니다.`);
-      deleteCount += sameDayDeleteCount;
-    }
-
-    if (deleteCount === 0) {
+    if (totalDeleteCount === 0) {
       logger.log("[GarbageCollector] 삭제할 오래된 데이터가 없습니다.");
       return;
     }
 
-    // 4. 일괄 삭제 실행
     await batch.commit();
-    logger.log(`[GarbageCollector] 총 ${deleteCount}개의 오래된 날씨 데이터를 성공적으로 삭제했습니다.`);
+    logger.log(`[GarbageCollector] 총 ${totalDeleteCount}개의 오래된 날씨 데이터를 성공적으로 삭제했습니다.`);
 
   } catch (error) {
     logger.error("[GarbageCollector] 날씨 데이터 삭제 중 오류 발생:", error);
-    // 에러를 다시 던져서 Cloud Scheduler가 실패로 기록하도록 합니다.
-    throw error;
+    if (error instanceof Error && error.message.includes("requires an index")) {
+        logger.error("[GarbageCollector] Firestore 인덱스가 필요합니다. 메시지:", error.message);
+    } else {
+        throw error;
+    }
   }
 });

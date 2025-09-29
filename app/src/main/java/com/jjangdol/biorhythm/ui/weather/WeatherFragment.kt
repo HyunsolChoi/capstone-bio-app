@@ -151,14 +151,17 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             if (list.isEmpty()) return null
             val a = list[0]
 
+            // --- '도' 정보 추출 ---
+            val province = a.adminArea
+
             // 단말/OS별로 필드가 다를 수 있으니 안전하게 조합
-            val wiedarea      = a.locality ?: a.adminArea       // 서울특별시,전주시,경기도 등
+            val wiedarea     = a.locality ?: a.adminArea       // 서울특별시, 전주시, 경기도 등
             val narrowarea   = a.subLocality ?: a.subAdminArea // 종로구 / 덕진구 등
-            val detailarea     = a.thoroughfare ?: a.featureName      // 효자동 or 도로명
+            val detailarea   = a.thoroughfare ?: a.featureName      // 효자동 or 도로명
 
             when
             {
-                !wiedarea.isNullOrBlank() && !narrowarea .isNullOrBlank() && !detailarea.isNullOrBlank() -> "$wiedarea $narrowarea $detailarea"
+                !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() && !detailarea.isNullOrBlank() -> "$wiedarea $narrowarea $detailarea"
                 !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() -> "$wiedarea $narrowarea"
                 !narrowarea.isNullOrBlank() -> narrowarea
                 !wiedarea.isNullOrBlank() -> wiedarea
