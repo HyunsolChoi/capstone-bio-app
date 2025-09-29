@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvTime"
+        android:layout_width="56dp"
+        android:layout_height="wrap_content"
+        android:text="14:00"
+        android:textSize="14sp"/>
+
+    <ImageView
+        android:id="@+id/ivIcon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/ic_weather"
+        android:layout_marginStart="8dp"/>
+
+    <TextView
+        android:id="@+id/tvTemp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="26°"
+        android:textSize="16sp"
+        android:paddingStart="12dp"/>
+
+    <TextView
+        android:id="@+id/tvEtc"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="강수확률 10%"
+        android:textSize="12sp"/>
+</LinearLayout>
