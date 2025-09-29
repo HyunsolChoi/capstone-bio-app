@@ -1,8 +1,6 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 
-admin.initializeApp();   // 🔹 빠졌으면 꼭 추가
-
 const db = admin.firestore();
 
 export const loginChecker = onCall({ region: "asia-northeast3" }, async (request) => {
