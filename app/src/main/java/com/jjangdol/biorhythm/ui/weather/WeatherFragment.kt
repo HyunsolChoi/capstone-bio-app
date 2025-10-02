@@ -27,6 +27,10 @@ import java.util.Locale
 import java.time.LocalTime
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import android.widget.TextView
+import android.util.TypedValue
+
+
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
     private var _binding: FragmentWeatherBinding? = null
@@ -43,7 +47,12 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 //FINE:정밀위치,COARSE:지리상 대략적 위치
 
         if (granted)
-        { fetchLastLocationAndUpdateUI() } //마지막 위치 가져와 화면에 갱신
+        {
+            showLoading(true)
+            fetchLastLocationAndUpdateUI()
+            bindRandomDummyWeather()
+            showLoading(false)
+        }
         else
         { Toast.makeText(requireContext(), "위치 권한이 없어 기본 위치를 표시합니다.", Toast.LENGTH_SHORT).show() }
     }
@@ -79,6 +88,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                     val name = withContext(Dispatchers.IO) { reverseGeocodeToShortName(loc.latitude, loc.longitude) } //지명을 얻지 못하면 위도(latitude),경도(longitude) 얻음
                     val display = name ?: "(${String.format(Locale.US, "%.4f", loc.latitude)}, ${String.format(Locale.US, "%.4f", loc.longitude)})"
                     binding.tvLocation.text  = display
+
+                    bindRandomDummyWeather()
                 }
             }
             .addOnFailureListener { Toast.makeText(requireContext(), "위치 조회 실패", Toast.LENGTH_SHORT).show() }
@@ -115,6 +126,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 if (loc != null)
                 {
                     updateAddressFrom(loc.latitude, loc.longitude)
+                    bindRandomDummyWeather()
                 }
                 else
                 {
@@ -210,9 +222,9 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     private fun bindRandomDummyWeather()
     {
         val list = listOf(
-            Dummy("맑음 · 체감 00°", "00°", "습도 00%", "강수 0mm",   R.drawable.ic_weather),
-            Dummy("가끔 구름 · 체감 00°", "00°", "습도 00%", "강수 0mm", R.drawable.ic_weather),
-            Dummy("비 · 체감 00°",   "00°", "습도 00%", "강수 0mm",   R.drawable.ic_weather)
+            Dummy("맑음 · 체감온도 00°", "00°", "습도 00%", "강수 0mm",   R.drawable.ic_weather),
+            Dummy("가끔 구름 · 체감온도 00°", "00°", "습도 00%", "강수 0mm", R.drawable.ic_weather),
+            Dummy("비 · 체감온도 00°",   "00°", "습도 00%", "강수 0mm",   R.drawable.ic_weather)
         )
 
         val d = list.random()
@@ -224,6 +236,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
         val now = LocalTime.now().withSecond(0).withNano(0).toString()
         binding.tvUpdated.text = "업데이트: $now"
+
+        bindGuidelines(d.desc)
     }
     private data class Dummy(
         val desc: String,
@@ -249,16 +263,48 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         if (!name.isNullOrBlank())
         {
             binding.tvUserName.text = name
-            binding.tvWelcome.text = "님, 환영합니다"
+            binding.tvWelcome.text = "님, 환영합니다."
         }
         else
         {
             binding.tvUserName.text = ""
-            binding.tvWelcome.text = "환영합니다"
+            binding.tvWelcome.text = "환영합니다."
         }
     }
 
-    // 소수점 포맷 헬퍼
+    /** 지침사항 */
+    private fun bindGuidelines(condition: String)
+    {
+        // 제목/부제
+        binding.tvGuidelineTitle.text = "안전 지침"
+
+        val (subtitleRes, arrayRes) = when
+        {
+            condition.contains("맑음") -> R.string.guideline_sunny_subtitle to R.array.guidelines_sunny
+            condition.contains("비") -> R.string.guideline_rain_subtitle  to R.array.guidelines_rain
+            condition.contains("눈") -> R.string.guideline_snow_subtitle  to R.array.guidelines_snow
+            else -> R.string.guideline_title to R.array.guidelines_default
+        }
+        binding.tvGuidelineSubtitle.text = getString(subtitleRes)
+
+        // 기존 항목 비우기
+        binding.guidelineContainer.removeAllViews()
+
+        val items = resources.getStringArray(arrayRes)
+
+        val pad = (8 * resources.displayMetrics.density).toInt()
+        items.forEach { line ->
+            val tv = android.widget.TextView(requireContext()).apply {
+                text = "$line"
+                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_primary))
+                setPadding(0, pad / 2, 0, pad / 2)
+            }
+            binding.guidelineContainer.addView(tv)
+        }
+    }
+
+    /** 소수점 포맷 */
     private fun Double.f(d: Int) = String.format(Locale.US, "%.${d}f", this)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?)
