@@ -30,17 +30,18 @@ class UserNotificationRepository @Inject constructor(
     // 현재 사용자 ID (UserRepository를 통해 일관된 방식으로 생성)
     private fun getCurrentUserId(): String? {
         val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: ""
         val name = prefs.getString("user_name", "") ?: ""
-        val dob = prefs.getString("dob", "") ?: ""
-        val empNum = prefs.getString("user_empNum", "") ?: ""
+        val empNum = prefs.getString("emp_num", "") ?: ""
 
-        return if (dept.isNotEmpty() && name.isNotEmpty() && dob.isNotEmpty()) {
+        android.util.Log.d("UserNotifRepo", "현재 로그인 사용자 → name=$name / empNum=$empNum")
+
+        return if (name.isNotEmpty() && empNum.isNotEmpty()) {
             userRepository.getUserId(name, empNum)
         } else {
             null
         }
     }
+
 
     /**
      * 사용자가 읽은 알림 ID 목록을 실시간으로 관찰

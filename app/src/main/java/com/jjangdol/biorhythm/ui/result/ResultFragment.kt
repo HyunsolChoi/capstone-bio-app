@@ -59,13 +59,11 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
 
     private fun getUserId(): String? {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: ""
-        val name = prefs.getString("user_name", "") ?: ""
-        val dob = prefs.getString("dob", "") ?: ""
-        val Enum = prefs.getString("user_Enum", "") ?: ""
+        val name = prefs.getString("user_name", null)
+        val empNum = prefs.getString("emp_num", null)
 
-        return if (dept.isNotEmpty() && name.isNotEmpty() && dob.isNotEmpty()) {
-            userRepository.getUserId(name, Enum)
+        return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
+            userRepository.getUserId(name, empNum)
         } else {
             null
         }

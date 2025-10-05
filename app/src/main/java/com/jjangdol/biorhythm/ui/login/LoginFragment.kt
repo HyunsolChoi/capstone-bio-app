@@ -46,6 +46,15 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                 .addOnSuccessListener { result ->
                     val res = result.data as Map<*, *>
                     if (res["status"] == "success") {
+                        val userName = res["name"] as? String ?: name
+
+                        // 로그인 성공 시 이름을 SharedPreferences에 저장
+                        val prefs = requireContext().getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
+                        prefs.edit()
+                            .putString("user_name", userName)
+                            .putString("emp_num", empNum)
+                            .apply()
+
                         Toast.makeText(requireContext(), "로그인 성공!", Toast.LENGTH_SHORT).show()
                         findNavController().navigate(R.id.action_login_to_main)
                     }

@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "bio-app-d2b71"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

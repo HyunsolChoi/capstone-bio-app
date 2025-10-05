@@ -3,12 +3,14 @@ package com.jjangdol.biorhythm.ui.weather
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,6 +31,10 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import android.widget.TextView
 import android.util.TypedValue
+import android.widget.EditText
+import androidx.navigation.findNavController
+import androidx.navigation.fragment.findNavController
+import com.google.firebase.firestore.FirebaseFirestore
 
 
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
@@ -37,6 +43,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     private val binding get() = _binding!!
     private lateinit var fused: FusedLocationProviderClient
     private var currentLocCts: CancellationTokenSource? = null
+    private val db = FirebaseFirestore.getInstance()
 
 
     /** 사용자의 위치 권한 요청 → 응답에 따른 처리 */
@@ -304,6 +311,52 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         }
     }
 
+    private fun checkAdminPassword(enteredPassword: String) {
+        db.collection("employees").document("000000")   // 관리자 사번 문서 (예: 000000)
+            .get()
+            .addOnSuccessListener { doc ->
+                val savedPassword = doc.getString("Password")
+                if (savedPassword == enteredPassword) {
+                    Toast.makeText(requireContext(), "관리자 모드 진입", Toast.LENGTH_SHORT).show()
+
+                } else {
+                    Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "비밀번호 확인 실패: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    /** 관리자 버튼 표시 여부 결정 */
+    private fun checkAdminVisibility() {
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null)
+
+        if (empNum.isNullOrEmpty()) {
+            binding.Adminbutton.visibility = View.GONE
+            return
+        }
+
+        db.collection("employees").document(empNum)
+            .get()
+            .addOnSuccessListener { doc ->
+                if (doc.exists() && doc.contains("Password")) {
+                    // ✅ 관리자 비밀번호 필드가 있는 경우만 버튼 표시
+                    binding.Adminbutton.visibility = View.VISIBLE
+                    Log.d("AdminCheck", "관리자 계정 확인됨 → 버튼 표시")
+                } else {
+                    // 일반 직원은 버튼 숨김
+                    binding.Adminbutton.visibility = View.GONE
+                    Log.d("AdminCheck", "일반 계정 → 버튼 숨김")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("AdminCheck", "Firestore 오류: ${e.message}")
+                binding.Adminbutton.visibility = View.GONE
+            }
+    }
+
     /** 소수점 포맷 */
     private fun Double.f(d: Int) = String.format(Locale.US, "%.${d}f", this)
 
@@ -330,6 +383,52 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 bindRandomDummyWeather()
                 updateLocationName()
             }, 1200)
+        }
+
+        // 관리자 여부 확인 후 버튼 표시/숨김
+        checkAdminVisibility()
+
+        // 관리자 버튼
+        binding.Adminbutton.setOnClickListener {
+            val input = EditText(requireContext())  // 🔹 EditText 생성
+            input.hint = "관리자 비밀번호"
+
+            AlertDialog.Builder(requireContext())
+                .setTitle("관리자 비밀번호 입력")
+                .setView(input)
+                .setPositiveButton("확인") { dialog, _ ->
+                    val password = input.text.toString().trim()
+
+                    val db = FirebaseFirestore.getInstance()
+                    db.collection("employees")
+                        .document("000000") // 관리자 문서
+                        .get()
+                        .addOnSuccessListener { doc ->
+                            if (doc.exists()) {
+                                val savedPw = doc.getString("Password") ?: ""
+                                if (savedPw == password) {
+                                    Toast.makeText(requireContext(), "관리자 로그인 성공", Toast.LENGTH_SHORT).show()
+                                    Log.d("NavDebug", "현재 Destination = ${findNavController().currentDestination?.id}, label=${findNavController().currentDestination?.label}")
+                                    Log.d("NavDebug", "현재 Graph id=${findNavController().graph.id}, start=${findNavController().graph.startDestinationId}")
+
+                                    // WeatherFragment.kt 내에서
+                                    // requireActivity()를 통해 Activity의 NavController를 가져옵니다.
+                                    // R.id.nav_host_fragment는 Activity 레이아웃에 정의된 NavHostFragment의 ID여야 합니다.
+                                    val mainNavController = requireActivity().findNavController(R.id.navHostFragment) // ✅ nav_host_fragment ID를 실제 ID로 변경
+                                    mainNavController.navigate(R.id.action_main_to_newAdmin)
+                                } else {
+                                    Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Toast.makeText(requireContext(), "관리자 계정이 존재하지 않습니다", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(requireContext(), "Firestore 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }
+                .setNegativeButton("취소", null)
+                .show()
         }
     }
 }

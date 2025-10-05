@@ -87,12 +87,10 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
 
     private fun getUserId(): String? {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: ""
         val name = prefs.getString("user_name", "") ?: ""
-        val dob = prefs.getString("dob", "") ?: ""
         val empNum = prefs.getString("user_empNum", "") ?: ""
 
-        return if (dept.isNotEmpty() && name.isNotEmpty() && dob.isNotEmpty()) {
+        return if (name.isNotEmpty() && empNum.isNotEmpty()) {
             userRepository.getUserId(name, empNum)
         } else {
             null
