@@ -39,7 +39,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:src="@drawable/ic_admin_panel"
-                        android:tint="@color/primary_color"
+                        app:tint="@color/primary_color"
                         android:layout_marginEnd="16dp" />
 
                     <LinearLayout
@@ -57,13 +57,15 @@
                             android:textColor="@color/text_primary" />
 
                         <TextView
-                            android:id="@+id/tvLoginTime"
+                            android:id="@+id/tvHomeLink"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="로그인 시간: 2025-06-04 14:30"
+                            android:paddingTop="4dp"
+                            android:text="▹ 일반 페이지로 이동하기"
                             android:textSize="14sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="4dp" />
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="?attr/selectableItemBackgroundBorderless" />
 
                     </LinearLayout>
 

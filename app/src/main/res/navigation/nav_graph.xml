@@ -166,6 +166,13 @@
         android:name="com.jjangdol.biorhythm.ui.admin.NewAdminFragment"
         android:label="관리자 모드"
         tools:layout="@layout/fragment_new_admin">
+
+        <!-- 홈 화면으로 돌아가는 액션 -->
+        <action
+            android:id="@+id/action_newAdminFragment_to_main"
+            app:destination="@id/mainFragment"
+            app:popUpTo="@id/mainFragment"
+            app:popUpToInclusive="true"/>
         <!-- 로그아웃하여 로그인으로 돌아가는 액션 -->
         <action
             android:id="@+id/action_admin_to_login"
@@ -176,6 +183,10 @@
         <action
             android:id="@+id/action_admin_to_notification_management"
             app:destination="@id/notificationManagementFragment" />
+
+        <action
+            android:id="@+id/action_newAdminFragment_to_adminChecklistManagementFragment"
+            app:destination="@id/adminChecklistManagementFragment" />
     </fragment>
 
     <!-- 10. 알림 관리 화면 -->
@@ -191,10 +202,6 @@
         android:label="체크리스트 문항 관리"
         tools:layout="@layout/fragment_admin_checklist_management" />
 
-    <action
-        android:id="@+id/action_admin_to_checklist_management"
-        app:destination="@id/adminChecklistManagementFragment" />
-
     <!-- 11. 기상 정보 화면 -->
     <fragment
         android:id="@+id/weatherFragment"
@@ -205,6 +212,5 @@
             android:id="@+id/action_weatherFragment_to_newAdminFragment"
             app:destination="@id/newAdminFragment" />
     </fragment>
-
 
 </navigation>

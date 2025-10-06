@@ -216,7 +216,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     /** 최초 한 번 기본값 (권한 거부/지오코더 실패 대비) : 일단 하드코딩*/
     private fun bindDummyWeatherOnce() {
         binding.tvLocation.text  = "현재 위치"
-        binding.tvUpdated.text   = "업데이트: --:--"
 
         binding.ivNowIcon.setImageResource(R.drawable.ic_weather) // 임시 아이콘
         binding.tvNowTemp.text = "00°"
@@ -240,9 +239,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         binding.tvHumidity.text = d.humidity
         binding.tvRain.text = d.rain
         binding.ivNowIcon.setImageResource(d.icon)
-
-        val now = LocalTime.now().withSecond(0).withNano(0).toString()
-        binding.tvUpdated.text = "업데이트: $now"
 
         bindGuidelines(d.desc)
     }
@@ -270,12 +266,12 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         if (!name.isNullOrBlank())
         {
             binding.tvUserName.text = name
-            binding.tvWelcome.text = "님, 환영합니다."
+            binding.tvWelcome.text = "님 환영합니다"
         }
         else
         {
             binding.tvUserName.text = ""
-            binding.tvWelcome.text = "환영합니다."
+            binding.tvWelcome.text = "환영합니다"
         }
     }
 
@@ -334,7 +330,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         val empNum = prefs.getString("emp_num", null)
 
         if (empNum.isNullOrEmpty()) {
-            binding.Adminbutton.visibility = View.GONE
+            binding.tvAdminLink.visibility = View.GONE
             return
         }
 
@@ -342,18 +338,18 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             .get()
             .addOnSuccessListener { doc ->
                 if (doc.exists() && doc.contains("Password")) {
-                    // ✅ 관리자 비밀번호 필드가 있는 경우만 버튼 표시
-                    binding.Adminbutton.visibility = View.VISIBLE
+                    // 관리자 비밀번호 필드가 있는 경우만 버튼 표시
+                    binding.tvAdminLink.visibility = View.VISIBLE
                     Log.d("AdminCheck", "관리자 계정 확인됨 → 버튼 표시")
                 } else {
                     // 일반 직원은 버튼 숨김
-                    binding.Adminbutton.visibility = View.GONE
+                    binding.tvAdminLink.visibility = View.GONE
                     Log.d("AdminCheck", "일반 계정 → 버튼 숨김")
                 }
             }
             .addOnFailureListener { e ->
                 Log.e("AdminCheck", "Firestore 오류: ${e.message}")
-                binding.Adminbutton.visibility = View.GONE
+                binding.tvAdminLink.visibility = View.GONE
             }
     }
 
@@ -389,8 +385,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         checkAdminVisibility()
 
         // 관리자 버튼
-        binding.Adminbutton.setOnClickListener {
-            val input = EditText(requireContext())  // 🔹 EditText 생성
+        binding.tvAdminLink.setOnClickListener {
+            val input = EditText(requireContext())  //  EditText 생성
             input.hint = "관리자 비밀번호"
 
             AlertDialog.Builder(requireContext())
@@ -414,7 +410,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                                     // WeatherFragment.kt 내에서
                                     // requireActivity()를 통해 Activity의 NavController를 가져옵니다.
                                     // R.id.nav_host_fragment는 Activity 레이아웃에 정의된 NavHostFragment의 ID여야 합니다.
-                                    val mainNavController = requireActivity().findNavController(R.id.navHostFragment) // ✅ nav_host_fragment ID를 실제 ID로 변경
+                                    val mainNavController = requireActivity().findNavController(R.id.navHostFragment) // nav_host_fragment ID를 실제 ID로 변경
                                     mainNavController.navigate(R.id.action_main_to_newAdmin)
                                 } else {
                                     Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다", Toast.LENGTH_SHORT).show()

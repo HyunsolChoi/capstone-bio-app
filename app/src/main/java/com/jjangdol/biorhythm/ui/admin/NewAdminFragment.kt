@@ -57,20 +57,12 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentNewAdminBinding.bind(view)
 
-        setupUI()
+        binding.tvHomeLink.setOnClickListener{
+            findNavController().navigate(R.id.action_newAdminFragment_to_main)}
+
         setupRecyclerView()
         setupClickListeners()
         observeData() // loadData() 대신 observeData() 사용
-    }
-
-    private fun setupUI() {
-        // 로그인 시간 표시
-        val currentTime = LocalDateTime.now()
-            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-        binding.tvLoginTime.text = "로그인 시간: $currentTime"
-
-        // 현재 날짜 표시
-        binding.btnDateFilter.text = selectedDate.format(DateTimeFormatter.ofPattern("MM-dd"))
     }
 
     private fun setupRecyclerView() {
@@ -108,18 +100,16 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
             Toast.makeText(requireContext(), "데이터를 새로고침했습니다", Toast.LENGTH_SHORT).show()
         }
 
-        // 알림 관리 버튼
+        // '일반 페이지로 이동' 버튼
+        binding.tvHomeLink.setOnClickListener {
+            // 1단계에서 popUpTo를 설정한 action ID 사용
+            findNavController().navigate(R.id.action_newAdminFragment_to_main)
+        }
+
+        /// 알림 관리 버튼 (수정)
         binding.btnManageNotifications.setOnClickListener {
-            // 알림 관리 화면으로 이동
-            try {
-                findNavController().navigate(R.id.action_admin_to_notification_management)
-            } catch (e: Exception) {
-                // Fragment를 직접 교체하는 방법
-                parentFragmentManager.beginTransaction()
-                    .replace(android.R.id.content, NotificationManagementFragment())
-                    .addToBackStack(null)
-                    .commit()
-            }
+            // try-catch 제거, NavController만 사용
+            findNavController().navigate(R.id.action_admin_to_notification_management)
         }
 
         // 비밀번호 변경 버튼
@@ -127,17 +117,10 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
             showChangePasswordDialog()
         }
 
-        // 체크리스트 문항 관리 버튼
+        // 체크리스트 문항 관리 버튼 (수정)
         binding.btnManageChecklist.setOnClickListener {
-            try {
-                findNavController().navigate(R.id.action_admin_to_checklist_management)
-            } catch (e: Exception) {
-                // Fragment를 직접 교체하는 방법
-                parentFragmentManager.beginTransaction()
-                    .replace(android.R.id.content, AdminChecklistManagementFragment())
-                    .addToBackStack(null)
-                    .commit()
-            }
+            // try-catch 제거, NavController만 사용
+            findNavController().navigate(R.id.action_newAdminFragment_to_adminChecklistManagementFragment)
         }
     }
 
