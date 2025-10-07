@@ -35,7 +35,13 @@ import android.widget.EditText
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import com.google.firebase.firestore.FirebaseFirestore
-
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.delay
+import java.time.LocalDate
+import kotlin.math.*
 
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
@@ -44,6 +50,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     private lateinit var fused: FusedLocationProviderClient
     private var currentLocCts: CancellationTokenSource? = null
     private val db = FirebaseFirestore.getInstance()
+    private lateinit var functions: FirebaseFunctions
 
 
     /** 사용자의 위치 권한 요청 → 응답에 따른 처리 */
@@ -65,41 +72,172 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     }
 
     /** 사용자의 위치 권한이 확인되면 → 허용 시 위치 조회 */
+
     @SuppressLint("MissingPermission")
-    private fun updateLocationName()
-    {
+    private fun updateLocationName() {
         val fine = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
         val coarse = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION)
-        //fine:정밀위치,coarse:지리상 대략적 위치
 
-        //두 위치가 모두 권한이 확인 되지 않으면 (권한 미허용)
-        //둘 중 하나만 권한이 허용되어도 위치는 사용 가능
-        if (fine != PackageManager.PERMISSION_GRANTED && coarse != PackageManager.PERMISSION_GRANTED)
-        {
-            // 권한요청
+        if (fine != PackageManager.PERMISSION_GRANTED && coarse != PackageManager.PERMISSION_GRANTED) {
             requestLocationPerms.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             return
         }
 
-        //최근 위치 가져오기 (최근 시스템이 알고 있는 위치)
-        // 클래스 필드로 초기화한 fused 사용 : onViewCreated에서 초기화됨
         fused.lastLocation
             .addOnSuccessListener { loc ->
-                if (loc == null) //기기가 한 번도 위치를 얻은 적 없거나 캐시가 없으면 loc==null
-                {
-                    fetchCurrentLocationFallback() //대체 경로 사용
+                if (loc == null) {
+                    fetchCurrentLocationFallback()
                     return@addOnSuccessListener
                 }
 
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val name = withContext(Dispatchers.IO) { reverseGeocodeToShortName(loc.latitude, loc.longitude) } //지명을 얻지 못하면 위도(latitude),경도(longitude) 얻음
-                    val display = name ?: "(${String.format(Locale.US, "%.4f", loc.latitude)}, ${String.format(Locale.US, "%.4f", loc.longitude)})"
-                    binding.tvLocation.text  = display
+                // 코루틴을 Main 스레드에서 시작하고, 필요한 부분만 IO 스레드로 전환합니다.
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                    showLoading(true)
 
-                    bindRandomDummyWeather()
+                    try {
+                        // 주소 변환
+                        val name = withContext(Dispatchers.IO) {
+                            reverseGeocodeToShortName(loc.latitude, loc.longitude)
+                        }
+                        binding.tvLocation.text = name ?: "위치 정보 없음"
+
+                        // 격자 변환 및 날씨 정보 가져와서 UI 업데이트 (suspend 함수 호출)
+                        val (nx, ny) = convertToGrid(loc.latitude, loc.longitude)
+                        getWeatherAndUpdateUI(nx, ny) // 이 함수가 끝날 때까지 아래 코드는 실행되지 않음
+
+                    } catch (e: Exception) {
+                        // 코루틴 내에서 발생할 수 있는 예외 처리
+                        Log.e("WeatherDebug", "updateLocationName 내 코루틴 오류", e)
+                    } finally {
+                        // 모든 작업이 끝난 후 로딩 종료
+                        delay(50) // UI 렌더링을 위한 짧은 지연
+                        showLoading(false)
+                    }
                 }
             }
-            .addOnFailureListener { Toast.makeText(requireContext(), "위치 조회 실패", Toast.LENGTH_SHORT).show() }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "위치 조회에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                // 위치 조회 실패 시에도 로딩 상태는 해제
+                showLoading(false)
+            }
+    }
+
+    /** 위도 경도 -> nx ny 변환 함수를 위한 값 */
+    data class LamcParameter(
+        val Re: Double = 6371.00877, // 지구 반경 (km)
+        val grid: Double = 5.0,       // 격자 간격 (km)
+        val slat1: Double = 30.0,     // 표준 위도 1
+        val slat2: Double = 60.0,     // 표준 위도 2
+        val olon: Double = 126.0,     // 기준점 경도
+        val olat: Double = 38.0,      // 기준점 위도
+        val xo: Double = 43.0,        // 기준점 X좌표
+        val yo: Double = 136.0        // 기준점 Y좌표
+    )
+    /** 위도 경도 -> nx ny 변환 함수 */
+    fun convertToGrid(lat: Double, lon: Double): Pair<Int, Int> {
+        val map = LamcParameter()
+
+        val PI = Math.asin(1.0) * 2.0
+        val DEGRAD = PI / 180.0
+
+        val re = map.Re / map.grid
+        val slat1 = map.slat1 * DEGRAD
+        val slat2 = map.slat2 * DEGRAD
+        val olon = map.olon * DEGRAD
+        val olat = map.olat * DEGRAD
+
+        var sn = Math.tan(PI * 0.25 + slat2 * 0.5) / Math.tan(PI * 0.25 + slat1 * 0.5)
+        sn = Math.log(Math.cos(slat1) / Math.cos(slat2)) / Math.log(sn)
+        var sf = Math.tan(PI * 0.25 + slat1 * 0.5)
+        sf = Math.pow(sf, sn) * Math.cos(slat1) / sn
+        var ro = Math.tan(PI * 0.25 + olat * 0.5)
+        ro = re * sf / Math.pow(ro, sn)
+
+        var ra = Math.tan(PI * 0.25 + lat * DEGRAD * 0.5)
+        ra = re * sf / Math.pow(ra, sn)
+        var theta = lon * DEGRAD - olon
+        if (theta > PI) theta -= 2.0 * PI
+        if (theta < -PI) theta += 2.0 * PI
+        theta *= sn
+
+        val x = (ra * Math.sin(theta) + map.xo + 0.5).toInt()
+        val y = (ro - ra * Math.cos(theta) + map.yo + 0.5).toInt()
+
+        return Pair(x, y)
+    }
+
+
+    /** Cloud Function을 호출하고 날씨 정보로 UI를 업데이트하는 함수 */
+    private suspend fun getWeatherAndUpdateUI(nx: Int, ny: Int) {
+        try {
+            Log.d("WeatherDebug", "getWeatherData 호출 시작: nx=$nx, ny=$ny")
+
+            val result = functions
+                .getHttpsCallable("getWeatherData")
+                .call(mapOf("nx" to nx, "ny" to ny))
+                .await()
+
+            val outer = result.data as? Map<*, *>
+            val weatherData = outer?.get("data") as? Map<String, String>
+
+            Log.d("WeatherDebug", "받은 원본 데이터: $outer")
+            Log.d("WeatherDebug", "실제 날씨 데이터: $weatherData")
+
+            if (weatherData != null) {
+                binding.tvNowTemp.text = "${weatherData["T1H"] ?: "--"}°"
+                binding.tvHumidity.text = "습도 ${weatherData["REH"] ?: "--"}%"
+                binding.tvRain.text = "강수 ${weatherData["RN1"] ?: "--"}"
+
+                val skyValue = weatherData["SKY"]
+                val ptyValue = weatherData["PTY"]
+                val condition = mapWeatherCondition(skyValue, ptyValue)
+
+                val temp = weatherData["T1H"]?.toDoubleOrNull()
+                val humidity = weatherData["REH"]?.toDoubleOrNull()
+
+                // 체감온도 (기상청 기상자료 공개 포털 참고)
+                if (temp != null && humidity != null) {
+                    val currentMonth = LocalDate.now().monthValue
+                    if (currentMonth in 5..10) {
+                        // 여름(5~9월)만 체감온도 표시
+                        val sensible = calculateSensibleTemperature(temp, humidity)
+                        binding.tvNowDesc.text = "$condition · 체감온도 ${"%.1f".format(sensible)}°"
+                    } else {
+                        // 10~5월은 체감온도 미표시
+                        binding.tvNowDesc.text = condition
+                    }
+                } else {
+                    binding.tvNowDesc.text = "$condition · 체감온도 --°"
+                }
+
+                bindGuidelines(condition)
+            } else {
+                Toast.makeText(requireContext(), "날씨 정보를 받아오지 못했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Log.e("WeatherDebug", "getWeatherData 호출 실패", e)
+            Toast.makeText(requireContext(), "날씨 정보를 가져오는 중 오류: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** 날씨 코드(SKY, PTY)를 한글 날씨 상태로 변환하는 도우미 함수 */
+    private fun mapWeatherCondition(sky: String?, pty: String?): String {
+        return when (pty) {
+            "0" -> when (sky) {
+                "1" -> "맑음"
+                "3" -> "구름많음"
+                "4" -> "흐림"
+                else -> "알 수 없음"
+            }
+            "1" -> "비"
+            "2" -> "비/눈"
+            "3" -> "눈"
+            "4" -> "소나기"
+            "5" -> "빗방울"
+            "6" -> "빗방울/눈날림"
+            "7" -> "눈날림"
+            else -> "알 수 없음"
+        }
     }
 
     /** 기기의 최근 위치가 확인이 안 된다면, 대체(백업) 경로 가져오기 */
@@ -133,7 +271,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 if (loc != null)
                 {
                     updateAddressFrom(loc.latitude, loc.longitude)
-                    bindRandomDummyWeather()
                 }
                 else
                 {
@@ -169,22 +306,29 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             if (list.isEmpty()) return null
             val a = list[0]
 
-            // --- '도' 정보 추출 ---
-            val province = a.adminArea
+            val wiedarea = a.locality ?: a.adminArea       // 시/도 (서울특별시, 전주시)
+            val narrowarea = a.subLocality ?: a.subAdminArea // 구 (종로구, 덕진구)
 
-            // 단말/OS별로 필드가 다를 수 있으니 안전하게 조합
-            val wiedarea     = a.locality ?: a.adminArea       // 서울특별시, 전주시, 경기도 등
-            val narrowarea   = a.subLocality ?: a.subAdminArea // 종로구 / 덕진구 등
-            val detailarea   = a.thoroughfare ?: a.featureName      // 효자동 or 도로명
+            // 동/도로명/지형지물 이름 추출
+            val thoroughfare = a.thoroughfare // 도로명 주소 또는 동 이름 (e.g., "금암동", "세종대로")
+            val featureName = a.featureName   // 지형/건물 이름 (e.g., "경복궁", "금암동")
 
-            when
-            {
-                !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() && !detailarea.isNullOrBlank() -> "$wiedarea $narrowarea $detailarea"
-                !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() -> "$wiedarea $narrowarea"
-                !narrowarea.isNullOrBlank() -> narrowarea
+            val detailarea = when {
+                // thoroughfare에 유효한 문자열이 있고 숫자가 아니라면 (주소 정보 방지)
+                thoroughfare?.any { it.isLetter() } == true -> thoroughfare
+                // 그렇지 않다면 featureName을 사용
+                else -> featureName
+            }
+
+            when {
+                !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() && !detailarea.isNullOrBlank() ->
+                    "$wiedarea $narrowarea $detailarea"
+                !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() ->
+                    "$wiedarea $narrowarea"
+                !wiedarea.isNullOrBlank() && !detailarea.isNullOrBlank() -> // 구 정보가 없을 경우 대비
+                    "$wiedarea $detailarea"
                 !wiedarea.isNullOrBlank() -> wiedarea
-                !a.featureName.isNullOrBlank() -> a.featureName
-                else -> null
+                else -> null // 모든 정보가 없을 경우
             }
         }
         catch (_: Exception) { null }
@@ -193,40 +337,32 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     /** 새로고침 로딩 */
     private fun showLoading(show: Boolean)
     {
+        Log.d("WeatherDebug", "showLoading($show)")
         binding.progress.visibility = if (show) View.VISIBLE else View.GONE
         binding.btnRefresh.isEnabled = !show
-        setNowSkeleton(show)
+        if (show) setNowSkeleton(true)
     }
-    private fun setNowSkeleton(show: Boolean)
-    {
-        if (show)
-        {
+
+    private fun setNowSkeleton(show: Boolean) {
+        if (show) {
             binding.ivNowIcon.imageAlpha = 80
             binding.tvNowTemp.text = "--°"
             binding.tvNowDesc.text = "불러오는 중…"
             binding.tvHumidity.text = "습도 --%"
             binding.tvRain.text = "강수 --"
-        }
-        else
-        {
+        } else {
             binding.ivNowIcon.imageAlpha = 255
+             binding.tvNowTemp.text = "--°"
+            binding.tvNowDesc.text = "불러오는 중…"
+            binding.tvHumidity.text = "습도 --%"
+            binding.tvRain.text = "강수 --"
         }
-    }
-
-    /** 최초 한 번 기본값 (권한 거부/지오코더 실패 대비) : 일단 하드코딩*/
-    private fun bindDummyWeatherOnce() {
-        binding.tvLocation.text  = "현재 위치"
-
-        binding.ivNowIcon.setImageResource(R.drawable.ic_weather) // 임시 아이콘
-        binding.tvNowTemp.text = "00°"
-        binding.tvNowDesc.text = "(맑음) · 체감온도 00°"
-        binding.tvHumidity.text = "습도 00%"
-        binding.tvRain.text     = "강수 0mm"
     }
 
     /** 새로고침 시 더미 날씨를 랜덤으로 바인딩 */
     private fun bindRandomDummyWeather()
     {
+        // todo : dummy 제거 아직 안했음. 원재가 최종 확인 부탁 1007 chs
         val list = listOf(
             Dummy("맑음 · 체감온도 00°", "00°", "습도 00%", "강수 0mm",   R.drawable.ic_weather),
             Dummy("가끔 구름 · 체감온도 00°", "00°", "습도 00%", "강수 0mm", R.drawable.ic_weather),
@@ -250,6 +386,21 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         val icon: Int
     )
 
+    /** Stull 근사식을 이용한 습구온도 계산 */
+    fun calculateWetBulbTemperature(tempC: Double, humidity: Double): Double {
+        return tempC * atan(0.151977 * sqrt(humidity + 8.313659)) +
+                atan(tempC + humidity) -
+                atan(humidity - 1.676331) +
+                0.00391838 * humidity.pow(1.5) * atan(0.023101 * humidity) -
+                4.686035
+    }
+
+    /** 기상청 체감온도 공식 */
+    fun calculateSensibleTemperature(tempC: Double, humidity: Double): Double {
+        val Tw = calculateWetBulbTemperature(tempC, humidity)
+        return -0.2442 + (0.55399 * Tw) + (0.45535 * tempC) -
+                (0.0022 * Tw * Tw) + (0.00278 * Tw * tempC) + 3.0
+    }
 
     override fun onDestroyView()
     {
@@ -361,24 +512,19 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentWeatherBinding.bind(view)
 
+        functions = Firebase.functions("asia-northeast3")
         fused = LocationServices.getFusedLocationProviderClient(requireContext())
 
         //유저환영
         greetUser()
-        // 초기 더미 바인딩
-        bindDummyWeatherOnce()
+        // 초기 로딩 UI 설정
+        setNowSkeleton(true)
         // 현재 위치명 시도
         updateLocationName()
 
-        // 새로고침: 로딩 → (더미)날씨 갱신 + 위치명 갱신
-        binding.btnRefresh.setOnClickListener{
-            showLoading(true)  // 네트워크 대기 연출
-
-            binding.btnRefresh.postDelayed({
-                showLoading(false)
-                bindRandomDummyWeather()
-                updateLocationName()
-            }, 1200)
+        // 새로고침
+        binding.btnRefresh.setOnClickListener {
+            updateLocationName()
         }
 
         // 관리자 여부 확인 후 버튼 표시/숨김

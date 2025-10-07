@@ -147,6 +147,9 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
 
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    /* --- await() 함수 사용을 위함 --- */
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 }
 
 kapt { correctErrorTypes = true }

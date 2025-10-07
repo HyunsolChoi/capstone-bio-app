@@ -26,7 +26,7 @@ export const getWeatherData = onCall({ secrets: [serviceKey] }, async (request) 
 
   logger.info(`클라이언트 요청 수신: nx=${nx}, ny=${ny}`);
 
-  // 2. API 요청을 위한 base_date, base_time 계산 (기존 로직 활용)
+  // 2. API 요청을 위한 base_date, base_time 계산
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
   let kstNow = new Date(now.getTime() + kstOffset);
@@ -79,7 +79,6 @@ export const getWeatherData = onCall({ secrets: [serviceKey] }, async (request) 
     logger.warn("Firestore 캐시 확인 중 오류 발생:", error);
     // 캐시 확인 중 에러가 발생해도 API 호출은 시도하도록 넘어감
   }
-
 
   // 공공데이터포털 기상청api 초단기예보 사용
   // const url = `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst?dataType=json&serviceKey=${serviceKey.value()}&numOfRows=60&pageNo=1&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;

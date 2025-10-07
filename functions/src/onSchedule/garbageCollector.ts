@@ -1,8 +1,5 @@
-// src/onSchedule/garbageCollector.ts
-
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
-// index.ts로부터 공유된 db 인스턴스를 가져옵니다.
 import { db } from "../index";
 
 /**
