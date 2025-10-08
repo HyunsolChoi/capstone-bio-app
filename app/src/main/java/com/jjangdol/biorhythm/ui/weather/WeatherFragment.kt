@@ -64,7 +64,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         {
             showLoading(true)
             fetchLastLocationAndUpdateUI()
-            bindRandomDummyWeather()
             showLoading(false)
         }
         else
@@ -190,7 +189,9 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
                 val skyValue = weatherData["SKY"]
                 val ptyValue = weatherData["PTY"]
-                val condition = mapWeatherCondition(skyValue, ptyValue)
+
+                val (condition, iconResId) = mapWeatherCondition(skyValue, ptyValue)
+                binding.ivNowIcon.setImageResource(iconResId)
 
                 val temp = weatherData["T1H"]?.toDoubleOrNull()
                 val humidity = weatherData["REH"]?.toDoubleOrNull()
@@ -221,23 +222,24 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     }
 
     /** 날씨 코드(SKY, PTY)를 한글 날씨 상태로 변환하는 도우미 함수 */
-    private fun mapWeatherCondition(sky: String?, pty: String?): String {
+    private fun mapWeatherCondition(sky: String?, pty: String?): Pair<String, Int> {
         return when (pty) {
             "0" -> when (sky) {
-                "1" -> "맑음"
-                "3" -> "구름많음"
-                "4" -> "흐림"
+                "1" -> "맑음" to R.drawable.ic_weather_sunny
+                "3" -> "구름많음" to R.drawable.ic_weather_cloudy
+                "4" -> "흐림" to R.drawable.ic_weather_cloudy
                 else -> "알 수 없음"
             }
-            "1" -> "비"
-            "2" -> "비/눈"
-            "3" -> "눈"
-            "4" -> "소나기"
-            "5" -> "빗방울"
-            "6" -> "빗방울/눈날림"
-            "7" -> "눈날림"
+
+            "1" -> "비" to R.drawable.ic_weather_rainy
+            "2" -> "비/눈" to R.drawable.ic_weather_rain_and_snow
+            "3" -> "눈" to R.drawable.ic_weather_snowy
+            "4" -> "소나기" to R.drawable.ic_weather_rainy
+            "5" -> "빗방울" to R.drawable.ic_weather_rainy
+            "6" -> "빗방울/눈날림" to R.drawable.ic_weather_rain_and_snow
+            "7" -> "눈날림" to R.drawable.ic_weather_snowy
             else -> "알 수 없음"
-        }
+        } as Pair<String, Int>
     }
 
     /** 기기의 최근 위치가 확인이 안 된다면, 대체(백업) 경로 가져오기 */
@@ -358,33 +360,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             binding.tvRain.text = "강수 --"
         }
     }
-
-    /** 새로고침 시 더미 날씨를 랜덤으로 바인딩 */
-    private fun bindRandomDummyWeather()
-    {
-        // todo : dummy 제거 아직 안했음. 원재가 최종 확인 부탁 1007 chs
-        val list = listOf(
-            Dummy("맑음 · 체감온도 00°", "00°", "습도 00%", "강수 0mm",   R.drawable.ic_weather),
-            Dummy("가끔 구름 · 체감온도 00°", "00°", "습도 00%", "강수 0mm", R.drawable.ic_weather),
-            Dummy("비 · 체감온도 00°",   "00°", "습도 00%", "강수 0mm",   R.drawable.ic_weather)
-        )
-
-        val d = list.random()
-        binding.tvNowDesc.text = d.desc
-        binding.tvNowTemp.text = d.temp
-        binding.tvHumidity.text = d.humidity
-        binding.tvRain.text = d.rain
-        binding.ivNowIcon.setImageResource(d.icon)
-
-        bindGuidelines(d.desc)
-    }
-    private data class Dummy(
-        val desc: String,
-        val temp: String,
-        val humidity: String,
-        val rain: String,
-        val icon: Int
-    )
 
     /** Stull 근사식을 이용한 습구온도 계산 */
     fun calculateWetBulbTemperature(tempC: Double, humidity: Double): Double {
