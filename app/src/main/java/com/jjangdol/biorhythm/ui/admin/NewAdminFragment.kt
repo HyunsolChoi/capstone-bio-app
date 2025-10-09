@@ -212,7 +212,7 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
         val message = buildString {
             appendLine("=== 기본 정보 ===")
             appendLine("이름: ${result.name}")
-            appendLine("부서: ${result.dept}")
+            //appendLine("부서: ${result.dept}")
             appendLine("날짜: ${result.date}")
             appendLine()
 

@@ -29,7 +29,8 @@ class AdminResultsAdapter(
 
         fun bind(item: ChecklistResult) {
             textView.apply {
-                text = "${item.name} (${item.dept}) - ${item.finalSafetyScore}점"
+                //text = "${item.name} (${item.dept}) - ${item.finalSafetyScore}점"
+                text = "${item.name} - ${item.finalSafetyScore}점"
 
                 // 점수에 따른 색상 변경
                 setTextColor(when {

@@ -2,6 +2,7 @@ package com.jjangdol.biorhythm.ui.checklist
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.core.os.bundleOf
@@ -22,12 +23,12 @@ import com.jjangdol.biorhythm.util.ScoreCalculator
 import com.jjangdol.biorhythm.vm.ChecklistViewModel
 import com.jjangdol.biorhythm.vm.SafetyCheckViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.tasks.await
 
 @AndroidEntryPoint
 class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
@@ -76,26 +77,55 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
     }
 
     private fun initializeSafetyCheckSession() {
-        val userId = getUserId() ?: return
-        val session = SafetyCheckSession(
-            sessionId = sessionId,
-            userId = userId,
-            startTime = System.currentTimeMillis()
-        )
-        safetyCheckViewModel.startNewSession(session)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val userId = getUserId() ?: return@launch
+            val session = SafetyCheckSession(
+                sessionId = sessionId,
+                userId = userId,
+                startTime = System.currentTimeMillis()
+            )
+            safetyCheckViewModel.startNewSession(session)
+        }
     }
 
-    private fun getUserId(): String? {
+    private suspend fun getUserId(): String? {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val name = prefs.getString("user_name", "") ?: ""
-        val empNum = prefs.getString("user_empNum", "") ?: ""
+        val userName = prefs.getString("user_name", "") ?: ""
+        val empNum = prefs.getString("emp_num", "") ?: ""
 
-        return if (name.isNotEmpty() && empNum.isNotEmpty()) {
-            userRepository.getUserId(name, empNum)
-        } else {
+        if (userName.isEmpty() || empNum.isEmpty()) {
+            Log.d("ChecklistFragment", "SharedPreferences에 사용자 정보가 비어 있음 → name=$userName, empNum=$empNum")
+            return null
+        }
+
+        return try {
+            val docRef = Firebase.firestore.collection("employees").document(empNum)
+            val doc = docRef.get().await()
+
+            if (!doc.exists()) {
+                Log.d("ChecklistFragment", "Firestore에 해당 사번($empNum) 문서가 존재하지 않음")
+                return null
+            }
+
+            val firestoreName = doc.getString("Name")
+            Log.d("ChecklistFragment", "Firestore name=$firestoreName / SharedPref name=$userName")
+
+            return if (firestoreName == userName) {
+                Log.d("ChecklistFragment", "Firestore 이름 일치 → 사용자 인증 성공 (userId=$empNum)")
+                empNum
+            } else {
+                Log.d("ChecklistFragment", "Firestore 이름 불일치 → Firestore=$firestoreName / 입력=$userName")
+                null
+            }
+
+        } catch (e: Exception) {
+            Log.e("ChecklistFragment", "Firestore 조회 중 예외 발생: ${e.message}")
+            e.printStackTrace()
             null
         }
     }
+
+
 
     private fun setupRecyclerView() {
         val adapter = ChecklistAdapter(emptyList()) { position, isYes ->
@@ -190,49 +220,51 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
     }
 
     private fun saveResultToFirestore(checklistScore: Int) {
-        val today = LocalDate.now().format(dateFormatter)
-        val userId = getUserId()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val today = LocalDate.now().format(dateFormatter)
+            val userId = getUserId()
 
-        if (userId == null) {
-            showError("사용자 정보를 찾을 수 없습니다")
-            return
-        }
+            if (userId == null) {
+                showError("사용자 정보를 찾을 수 없습니다.")
+                return@launch
+            }
 
-        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
 
-        val result = ChecklistResult(
-            userId = userId,
-            name = prefs.getString("user_name", "") ?: "",
-            dept = prefs.getString("user_dept", "") ?: "",
-            checklistScore = checklistScore,
-            finalScore = checklistScore,
-            date = today
-        )
+            val result = ChecklistResult(
+                userId = userId,
+                name = prefs.getString("user_name", "") ?: "",
+                //dept = prefs.getString("user_dept", "") ?: "",
+                checklistScore = checklistScore,
+                finalScore = checklistScore,
+                date = today
+            )
 
-        Firebase.firestore.collection("results")
-            .document(today)
-            .collection("entries")
-            .document(userId)
-            .set(result)
-            .addOnSuccessListener {
-                // 중복으로 저장 (userId 기준)
-                Firebase.firestore.collection("results")
+            try {
+                val db = Firebase.firestore
+
+                db.collection("results")
+                    .document(today)
+                    .collection("entries")
+                    .document(userId)
+                    .set(result)
+                    .await()
+
+                db.collection("results")
                     .document(userId)
                     .collection("daily")
                     .document(today)
                     .set(result)
-                    .addOnSuccessListener {
-                        binding.loadingOverlay.visibility = View.GONE
-                        Toast.makeText(requireContext(), "제출 완료", Toast.LENGTH_SHORT).show()
-                        navigateToTremorMeasurement()
-                    }
-                    .addOnFailureListener { e ->
-                        showError("제출 실패: ${e.message}")
-                    }
-            }
-            .addOnFailureListener { e ->
+                    .await()
+
+                binding.loadingOverlay.visibility = View.GONE
+                Toast.makeText(requireContext(), "제출 완료", Toast.LENGTH_SHORT).show()
+                navigateToTremorMeasurement()
+
+            } catch (e: Exception) {
                 showError("제출 실패: ${e.message}")
             }
+        }
     }
 
     private fun navigateToTremorMeasurement() {

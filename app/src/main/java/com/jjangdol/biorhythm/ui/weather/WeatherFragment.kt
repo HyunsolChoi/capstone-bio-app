@@ -433,23 +433,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         }
     }
 
-    private fun checkAdminPassword(enteredPassword: String) {
-        db.collection("employees").document("000000")   // 관리자 사번 문서 (예: 000000)
-            .get()
-            .addOnSuccessListener { doc ->
-                val savedPassword = doc.getString("Password")
-                if (savedPassword == enteredPassword) {
-                    Toast.makeText(requireContext(), "관리자 모드 진입", Toast.LENGTH_SHORT).show()
-
-                } else {
-                    Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다.", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "비밀번호 확인 실패: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
     /** 관리자 버튼 표시 여부 결정 */
     private fun checkAdminVisibility() {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)

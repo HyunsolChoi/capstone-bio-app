@@ -100,7 +100,7 @@ class AdminResultsFragment : Fragment(R.layout.fragment_admin_results) {
         val message = buildString {
             appendLine("=== 기본 정보 ===")
             appendLine("이름: ${item.name}")
-            appendLine("부서: ${item.dept}")
+            //appendLine("부서: ${item.dept}")
             appendLine("날짜: ${item.date}")
             appendLine("안전 등급: ${item.safetyLevel}")
             appendLine()

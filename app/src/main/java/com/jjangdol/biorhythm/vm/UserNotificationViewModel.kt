@@ -118,9 +118,12 @@ class UserNotificationViewModel @Inject constructor(
             userNotificationRepository.markAsRead(notificationId)
                 .onSuccess {
                     _uiState.value = UiState.Success("읽음 처리되었습니다")
+                    // 읽음 처리되었습니다 메시지가 지속적으로 뜨는 현상 방지
+                    _uiState.value = UiState.Idle
                 }
                 .onFailure { e ->
                     _uiState.value = UiState.Error("읽음 처리에 실패했습니다: ${e.message}")
+                    _uiState.value = UiState.Idle
                 }
         }
     }
