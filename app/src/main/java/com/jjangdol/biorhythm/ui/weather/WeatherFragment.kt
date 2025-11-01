@@ -199,7 +199,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 // 체감온도 (기상청 기상자료 공개 포털 참고)
                 if (temp != null && humidity != null) {
                     val currentMonth = LocalDate.now().monthValue
-                    if (currentMonth in 5..10) {
+                    if (currentMonth in 5..9) {
                         // 여름(5~9월)만 체감온도 표시
                         val sensible = calculateSensibleTemperature(temp, humidity)
                         binding.tvNowDesc.text = "$condition · 체감온도 ${"%.1f".format(sensible)}°"

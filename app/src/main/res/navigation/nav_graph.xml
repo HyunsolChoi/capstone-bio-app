@@ -113,6 +113,11 @@
         <argument
             android:name="sessionId"
             app:argType="string" />
+        <argument
+            android:name="rawData"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
         <action
             android:id="@+id/action_ppg_to_result"
             app:destination="@id/resultFragment"
@@ -131,6 +136,11 @@
         tools:layout="@layout/fragment_result">
         <argument
             android:name="sessionId"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="rawData"
             app:argType="string"
             app:nullable="true"
             android:defaultValue="@null" />

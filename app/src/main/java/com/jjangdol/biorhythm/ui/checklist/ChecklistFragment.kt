@@ -210,59 +210,10 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
                     checklistScore = checklistScore,
                 )
 
-                // 3) Firebase 기록 (호환용)
-                saveResultToFirestore(checklistScore)
-
-            } catch (e: Exception) {
-                showError("오류가 발생했습니다: ${e.message}")
-            }
-        }
-    }
-
-    private fun saveResultToFirestore(checklistScore: Int) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val today = LocalDate.now().format(dateFormatter)
-            val userId = getUserId()
-
-            if (userId == null) {
-                showError("사용자 정보를 찾을 수 없습니다.")
-                return@launch
-            }
-
-            val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-
-            val result = ChecklistResult(
-                userId = userId,
-                name = prefs.getString("user_name", "") ?: "",
-                //dept = prefs.getString("user_dept", "") ?: "",
-                checklistScore = checklistScore,
-                finalScore = checklistScore,
-                date = today
-            )
-
-            try {
-                val db = Firebase.firestore
-
-                db.collection("results")
-                    .document(today)
-                    .collection("entries")
-                    .document(userId)
-                    .set(result)
-                    .await()
-
-                db.collection("results")
-                    .document(userId)
-                    .collection("daily")
-                    .document(today)
-                    .set(result)
-                    .await()
-
-                binding.loadingOverlay.visibility = View.GONE
-                Toast.makeText(requireContext(), "제출 완료", Toast.LENGTH_SHORT).show()
                 navigateToTremorMeasurement()
 
             } catch (e: Exception) {
-                showError("제출 실패: ${e.message}")
+                showError("오류가 발생했습니다: ${e.message}")
             }
         }
     }

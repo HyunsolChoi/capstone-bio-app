@@ -62,8 +62,8 @@
                 android:layout_width="80dp"
                 android:layout_height="80dp"
                 android:src="@drawable/ic_heart_pulse"
-                android:tint="@color/primary_color"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="16dp"
+                app:tint="@color/primary_color" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -119,7 +119,7 @@
                         android:layout_height="50dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_fingerprint"
-                        android:tint="@android:color/white" />
+                        app:tint="@android:color/white" />
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -356,8 +356,8 @@
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_heart_pulse"
-                    android:tint="@color/safety_safe"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_marginBottom="16dp"
+                    app:tint="@color/safety_safe" />
 
                 <TextView
                     android:id="@+id/tvResult"
@@ -369,7 +369,7 @@
                     android:layout_marginBottom="8dp"
                     tools:text="85점" />
 
-                <!-- 🔥 추가: 안전 등급 표시 -->
+                <!-- 추가: 안전 등급 표시 -->
                 <TextView
                     android:id="@+id/tvWorkFitness"
                     android:layout_width="wrap_content"

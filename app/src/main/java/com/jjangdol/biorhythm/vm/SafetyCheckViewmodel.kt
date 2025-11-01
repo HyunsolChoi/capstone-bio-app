@@ -2,6 +2,7 @@ package com.jjangdol.biorhythm.vm
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -40,7 +41,6 @@ class SafetyCheckViewModel @Inject constructor(
     private val _checklistScore = MutableLiveData<Int>(0)
     val checklistScore: LiveData<Int> = _checklistScore
 
-
     private val dateFormatter = DateTimeFormatter.ISO_DATE
 
     // 체크리스트 점수를 메모리에 저장
@@ -53,32 +53,38 @@ class SafetyCheckViewModel @Inject constructor(
         data class Error(val message: String) : SessionState()
     }
 
+    private fun getUserEmpNum(): String? {
+        val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+
+        val empNum = prefs.getString("user_empNum", "")
+
+        return empNum
+    }
+
     private fun getUserId(): String? {
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: ""
         val name = prefs.getString("user_name", "") ?: ""
-        val dob = prefs.getString("dob", "") ?: ""
         val empNum = prefs.getString("user_empNum", "") ?: ""
 
-        return if (dept.isNotEmpty() && name.isNotEmpty() && dob.isNotEmpty()) {
+        return if (name.isNotEmpty() && empNum.isNotEmpty()) {
             userRepository.getUserId(name, empNum)
         } else {
             null
         }
     }
 
-    private fun getUserProfile(): Triple<String, String, String>? {
+    private fun getUserProfile(): Pair<String, String>? {
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: ""
+        val dept = prefs.getString("user_dept", "") ?: "부서 미등록"
         val name = prefs.getString("user_name", "") ?: ""
-        val dob = prefs.getString("dob", "") ?: ""
 
-        return if (dept.isNotEmpty() && name.isNotEmpty() && dob.isNotEmpty()) {
-            Triple(dept, name, dob)
+        return if (name.isNotEmpty()) {
+            Pair(dept, name)
         } else {
             null
         }
     }
+
 
     fun startNewSession(session: SafetyCheckSession) {
         _currentSession.value = session
@@ -140,12 +146,16 @@ class SafetyCheckViewModel @Inject constructor(
     }
 
     fun addMeasurementResult(result: MeasurementResult) {
+        Log.d("SafetyCheckVM", "========== addMeasurementResult ==========")
+        Log.d("SafetyCheckVM", "측정 타입: ${result.type}")
+        Log.d("SafetyCheckVM", "점수: ${result.score}")
         _currentSession.value?.let { session ->
-            session.measurementResults.add(result)
-            _currentSession.value = session.copy(
-                measurementResults = session.measurementResults
-            )
+            val updated = session.measurementResults.toMutableList()
+            updated.removeAll { it.type == result.type }
+            updated.add(result)
+            _currentSession.value = session.copy(measurementResults = updated)
         }
+        Log.d("SafetyCheckVM", "현재 세션의 측정 결과 개수: ${_currentSession.value?.measurementResults?.size}")
     }
 
     fun completeSession(onComplete: (SafetyCheckResult) -> Unit) {
@@ -155,12 +165,19 @@ class SafetyCheckViewModel @Inject constructor(
             try {
                 val session = _currentSession.value ?: throw Exception("세션이 없습니다")
                 val userId = getUserId() ?: throw Exception("사용자 정보를 찾을 수 없습니다")
+                val userEmpNum = getUserEmpNum() ?: throw Exception("사용자 정보를 찾을 수 없습니다")
                 val userProfile = getUserProfile() ?: throw Exception("사용자 프로필을 찾을 수 없습니다")
 
-                val (dept, name, _) = userProfile
+                val (dept, name) = userProfile
+
+                Log.d("SafetyCheck", "========== Firebase 저장 시작 ==========")
+                Log.d("SafetyCheck", "사용자 사번: $userEmpNum")
+                Log.d("SafetyCheck", "이름: $name")
+                Log.d("SafetyCheck", "부서: $dept")
 
                 // 저장된 점수 사용
                 val checklistScore = savedChecklistScore
+                Log.d("SafetyCheck", "체크리스트 점수: $checklistScore")
 
                 // 측정 결과 점수 추출
                 val tremorScore = session.measurementResults
@@ -169,6 +186,10 @@ class SafetyCheckViewModel @Inject constructor(
                     .find { it.type == MeasurementType.PUPIL }?.score ?: 0f
                 val ppgScore = session.measurementResults
                     .find { it.type == MeasurementType.PPG }?.score ?: 0f
+
+                Log.d("SafetyCheck", "손떨림 점수: $tremorScore")
+                Log.d("SafetyCheck", "피로도 점수: $pupilScore")
+                Log.d("SafetyCheck", "심박 점수: $ppgScore")
 
                 // 최종 안전 점수 계산
                 val finalScore = ScoreCalculator.calcFinalSafetyScore(
@@ -181,14 +202,24 @@ class SafetyCheckViewModel @Inject constructor(
                 // 안전 레벨 결정
                 val safetyLevel = SafetyLevel.fromScore(finalScore)
 
+                Log.d("SafetyCheck", "최종 안전 점수: $finalScore")
+                Log.d("SafetyCheck", "안전 레벨: ${safetyLevel.name} (${safetyLevel.displayName})")
+
                 // 권고사항 생성
                 val recommendations = generateRecommendations(
                     safetyLevel, tremorScore, pupilScore, ppgScore
                 )
 
+                Log.d("SafetyCheck", "권고사항: ${recommendations.joinToString(", ")}")
+
+                // 현재 시각
+                val currentDate = LocalDate.now().format(dateFormatter)
+                Log.d("SafetyCheck", "측정 완료 시각: $currentDate")
+
                 // 최종 결과 객체 생성
                 val result = SafetyCheckResult(
                     userId = userId,
+                    empNum = userEmpNum,
                     name = name,
                     dept = dept,
                     checklistScore = checklistScore,
@@ -196,21 +227,31 @@ class SafetyCheckViewModel @Inject constructor(
                     pupilScore = pupilScore,
                     ppgScore = ppgScore,
                     finalSafetyScore = finalScore,
-                    safetyLevel = safetyLevel,
-                    date = LocalDate.now().format(dateFormatter),
-                    recommendations = recommendations
+                    //safetyLevel = safetyLevel,
+                    date = currentDate,
+                    //recommendations = recommendations
                 )
 
+                Log.d("SafetyCheck", "========== Firebase 저장 데이터 요약 ==========")
+                Log.d("SafetyCheck", "result 객체: $result")
+
                 // Firestore에 저장
+                Log.d("SafetyCheck", "Firestore 저장 시작...")
                 saveResultToFirestore(result)
+                Log.d("SafetyCheck", "Firestore 저장 함수 호출 완료")
 
                 // 세션 완료 처리
                 _currentSession.value = session.copy(isCompleted = true)
                 _sessionState.value = SessionState.Success("안전 체크 완료")
 
+                Log.d("SafetyCheck", "========== Firebase 저장 완료 ==========")
+
                 onComplete(result)
 
             } catch (e: Exception) {
+                Log.e("SafetyCheck", "========== Firebase 저장 실패 ==========")
+                Log.e("SafetyCheck", "에러 메시지: ${e.message}")
+                Log.e("SafetyCheck", "스택 트레이스:", e)
                 _sessionState.value = SessionState.Error("세션 완료 실패: ${e.message}")
             }
         }
@@ -252,38 +293,59 @@ class SafetyCheckViewModel @Inject constructor(
         return recommendations
     }
 
-    private suspend fun saveResultToFirestore(result: SafetyCheckResult) {
+    suspend fun saveResultToFirestore(result: SafetyCheckResult) {
+        Log.d("SafetyCheck", "========== saveResultToFirestore 시작 ==========")
+
         val today = result.date
         val userId = result.userId
+        val empNum = result.empNum
 
-        // 기존 구조 유지 (일별 결과)
-        firestore.collection("results")
-            .document(today)
-            .collection("entries")
-            .document(userId)
-            .set(result)
-            .await()
+        // 명시적으로 Map으로 변환
+        val dataMap = hashMapOf(
+            "userId" to result.userId,
+            "empNum" to result.empNum,
+            "name" to result.name,
+            "dept" to result.dept,
+            "checklistScore" to result.checklistScore,
+            "tremorScore" to result.tremorScore,
+            "pupilScore" to result.pupilScore,
+            "ppgScore" to result.ppgScore,
+            "finalSafetyScore" to result.finalSafetyScore,
+            "safetyLevel" to result.safetyLevel.name,
+            "date" to result.date,
+            "timestamp" to result.timestamp,
+            "recommendations" to result.recommendations
+        )
 
-        // 사용자별 이력
-        firestore.collection("results")
-            .document(userId)
-            .collection("daily")
-            .document(today)
-            .set(result)
-            .await()
+        Log.d("SafetyCheck", "변환된 dataMap: $dataMap")
 
-        // 안전 체크 전용 컬렉션에도 저장
-        val sessionId = _currentSession.value?.sessionId ?: ""
-        if (sessionId.isNotEmpty()) {
-            firestore.collection("safety_checks")
-                .document(userId)
-                .collection("sessions")
-                .document(sessionId)
-                .set(mapOf(
-                    "result" to result,
-                    "session" to _currentSession.value
-                ))
+        try {
+            // 주입받은 firestore 사용
+            Log.d("SafetyCheck", "일별 결과 저장 시작: results/$today/entries/$empNum")
+            val task1 = firestore.collection("results")
+                .document(today)
+                .collection("entries")
+                .document(empNum)
+                .set(dataMap)
                 .await()
+            Log.d("SafetyCheck", "일별 결과 저장 완료: $task1")
+
+            Log.d("SafetyCheck", "사용자별 이력 저장 시작: results/$empNum/daily/$today")
+            val task2 = firestore.collection("results")
+                .document(empNum)
+                .collection("daily")
+                .document(today)
+                .set(dataMap)
+                .await()
+            Log.d("SafetyCheck", "사용자별 이력 저장 완료: $task2")
+
+            Log.d("SafetyCheck", "========== saveResultToFirestore 완료 ==========")
+
+        } catch (e: Exception) {
+            Log.e("SafetyCheck", "Firestore 저장 중 에러", e)
+            Log.e("SafetyCheck", "에러 타입: ${e.javaClass.simpleName}")
+            Log.e("SafetyCheck", "에러 메시지: ${e.message}")
+            throw e
         }
     }
 

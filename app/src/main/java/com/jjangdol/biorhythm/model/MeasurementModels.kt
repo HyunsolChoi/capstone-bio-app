@@ -35,6 +35,7 @@ data class SafetyCheckSession(
 /* ---------- 최종 결과 ---------- */
 data class SafetyCheckResult(
     val userId: String = "",
+    val empNum: String = "",
     val name: String = "",
     val dept: String = "",
     val checklistScore: Int = 0,

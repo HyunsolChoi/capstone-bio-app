@@ -47,14 +47,60 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         val sessionId = args.sessionId
 
         if (sessionId != null) {
-            // 측정 후 결과 표시
-            loadSessionResults()
+            // 측정 후 결과 표시 - Flow로부터 즉시 값 가져오기
+            val session = safetyCheckViewModel.currentSession.value
+            if (session != null) {
+                displaySessionResults(session)
+            } else {
+                Toast.makeText(requireContext(), "세션 데이터를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
+            }
         } else {
-            // 기존 방식 (오늘 결과만 보기)
+            // 오늘 결과 Firestore에서 조회
             loadTodayResults()
         }
 
         setupButtons()
+    }
+
+
+    private fun displaySessionResults(session: com.jjangdol.biorhythm.model.SafetyCheckSession) {
+        val checklistScore = safetyCheckViewModel.checklistScore.value ?: 0
+        val tremorScore = session.measurementResults.find { it.type.name == "TREMOR" }?.score ?: 0f
+        val pupilScore = session.measurementResults.find { it.type.name == "PUPIL" }?.score ?: 0f
+        val ppgScore = session.measurementResults.find { it.type.name == "PPG" }?.score ?: 0f
+
+        val finalScore = com.jjangdol.biorhythm.util.ScoreCalculator.calcFinalSafetyScore(
+            checklistScore, tremorScore, pupilScore, ppgScore
+        )
+        val safetyLevel = com.jjangdol.biorhythm.model.SafetyLevel.fromScore(finalScore)
+
+        binding.tvChecklistScore.text = checklistScore.toString()
+        binding.tvTremorScore.text = "${tremorScore.toInt()}점"
+        binding.tvPupilScore.text = "${pupilScore.toInt()}점"
+        binding.tvPpgScore.text = "${ppgScore.toInt()}점"
+        binding.tvFinalScore.text = "${finalScore.toInt()}점"
+        binding.tvSafetyLevel.text = safetyLevel.displayName
+        binding.tvSafetyLevel.setTextColor(Color.parseColor(safetyLevel.color))
+
+        // 안전 레벨에 따른 아이콘 표시
+        binding.ivSafetyStatus.setImageResource(
+            when (safetyLevel) {
+                SafetyLevel.SAFE -> R.drawable.ic_check_circle
+                SafetyLevel.CAUTION -> R.drawable.ic_warning
+                SafetyLevel.DANGER -> R.drawable.ic_error
+            }
+        )
+
+        setupRadarChart(checklistScore, tremorScore, pupilScore, ppgScore)
+        setupBarChart(checklistScore, tremorScore, pupilScore, ppgScore, finalScore)
+
+        val riskFactors = ScoreCalculator.identifyRiskFactors(tremorScore, pupilScore, ppgScore)
+        if (riskFactors.isNotEmpty()) {
+            binding.riskFactorLayout.visibility = View.VISIBLE
+            binding.tvRiskFactors.text = riskFactors.joinToString("\n") {
+                "• ${it.description} (${it.severity})"
+            }
+        }
     }
 
     private fun getUserId(): String? {

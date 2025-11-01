@@ -8,7 +8,9 @@ import android.os.*
 import android.util.Log
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
+import androidx.navigation.fragment.findNavController
 import android.view.*
+import androidx.lifecycle.Lifecycle
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentPpgMeasurementBinding
 import com.jjangdol.biorhythm.model.MeasurementState
@@ -1046,7 +1048,11 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                     // 다음 단계 결정 (점수 기반)
                     when (result.workFitness) {
                         WorkFitnessLevel.EXCELLENT, WorkFitnessLevel.GOOD -> {
-                            btnNext.text = "다음 측정"
+                            if (measurementType == MeasurementType.PPG) {
+                                btnNext.text = "결과 보기" // 심혈관 체크까지 끝낸 경우
+                            } else {
+                                btnNext.text = "다음 측정"
+                            }
                             btnNext.setBackgroundColor(requireContext().getColor(R.color.primary_color))
                         }
                         WorkFitnessLevel.FAIR -> {
@@ -1155,24 +1161,47 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
 
     private fun handleNextAction(result: PPGMeasurementResult) {
         when (result.workFitness) {
-            WorkFitnessLevel.EXCELLENT, WorkFitnessLevel.GOOD, WorkFitnessLevel.FAIR -> {
-                // 정상 범위: 점수와 함께 다음 단계로
-                val rawData = buildRawDataJson(result)
-                onMeasurementComplete(result.score, rawData)
-            }
+            WorkFitnessLevel.EXCELLENT,
+            WorkFitnessLevel.GOOD,
+            WorkFitnessLevel.FAIR,
             WorkFitnessLevel.POOR -> {
-                // 주의 필요: 사용자 확인 후 진행
+
                 val rawData = buildRawDataJson(result)
+                val sessionId = args.sessionId // 이미 SafeArgs로 받은 세션 ID
+
+                // VM에 결과 반영하기
                 onMeasurementComplete(result.score, rawData)
+
+                val direction = PPGMeasurementFragmentDirections
+                    .actionPpgToResult(sessionId, rawData)
+
+                findNavController().navigate(direction)
             }
-            WorkFitnessLevel.CRITICAL -> {
-                // 위험: 강제 재측정 또는 매우 낮은 점수로 진행
-                showCriticalDialog(result)
-            }
+
+            WorkFitnessLevel.CRITICAL -> showCriticalDialog(result)
             WorkFitnessLevel.MEASUREMENT_FAILED -> {
-                // 재측정
                 resetMeasurement()
                 startMeasurement()
+            }
+        }
+    }
+
+    override fun onLastMeasurementComplete(sessionId: String, rawData: String?) {
+        Log.d("PPGMeasurement", "onLastMeasurementComplete 호출")
+
+        // viewLifecycleOwner가 활성 상태인지 확인
+        if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            Log.w("PPGMeasurement", "View lifecycle가 활성 상태가 아님")
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val action = PPGMeasurementFragmentDirections
+                    .actionPpgToResult(sessionId)
+                findNavController().navigate(action)
+            } catch (e: Exception) {
+                Log.e("PPGMeasurement", "네비게이션 실패", e)
             }
         }
     }

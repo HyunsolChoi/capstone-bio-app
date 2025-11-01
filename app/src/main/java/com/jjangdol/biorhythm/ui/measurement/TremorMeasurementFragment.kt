@@ -87,6 +87,10 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
     // 사용자 프로필 추가
     private var userProfile: UserProfile? = null
 
+    // 측정 결과 저장 변수
+    private var latestScore: Float = 0f
+    private var latestRawData: String? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -95,6 +99,9 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
         _binding = FragmentTremorMeasurementBinding.inflate(inflater, container, false)
         return binding.root
     }
+
+    // 마지막 측정(심박)이 아니므로 빈 함수로 구현
+    override fun onLastMeasurementComplete(sessionId: String, rawData: String?) {}
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -142,17 +149,15 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
     }
 
     private fun setupUI() {
-        binding.btnStart.setOnClickListener {
-            startMeasurement()
-        }
-
-        binding.btnSkip.setOnClickListener {
-            skipMeasurement()
-        }
-
+        binding.btnStart.setOnClickListener { startMeasurement() }
+        binding.btnSkip.setOnClickListener { skipMeasurement() }
         binding.btnRetry.setOnClickListener {
             resetMeasurement()
             startMeasurement()
+        }
+
+        binding.btnNext.setOnClickListener {
+            onMeasurementComplete(latestScore, latestRawData)
         }
     }
 
@@ -295,15 +300,18 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
             }
         """.trimIndent()
 
+        latestScore = score
+        latestRawData = rawData
+
         updateState(MeasurementState.Completed(MeasurementResult(measurementType, score, rawData)))
 
         // UI 업데이트
         showResults(score)
 
-        // 결과 저장 후 다음으로
-        binding.btnNext.setOnClickListener {
-            onMeasurementComplete(score, rawData)
-        }
+//        // 결과 저장 후 다음으로
+//        binding.btnNext.setOnClickListener {
+//            onMeasurementComplete(score, rawData)
+//        }
     }
 
     private fun validateMeasurementQuality(data: List<Triple<Float, Float, Float>>): Boolean {

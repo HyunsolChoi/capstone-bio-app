@@ -82,6 +82,10 @@ class PupilMeasurementFragment : BaseMeasurementFragment() {
         setupUI()
     }
 
+    // 마지막 측정(심박)이 아니므로 빈 함수로 구현
+    override fun onLastMeasurementComplete(sessionId: String, rawData: String?) {
+    }
+
     private fun setupFaceDetector() {
         val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
