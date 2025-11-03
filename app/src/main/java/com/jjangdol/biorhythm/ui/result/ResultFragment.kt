@@ -3,6 +3,7 @@ package com.jjangdol.biorhythm.ui.result
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -107,6 +108,8 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val name = prefs.getString("user_name", null)
         val empNum = prefs.getString("emp_num", null)
+
+        Log.d("SafetyCheck-userId", "이름: ${name} 사번: ${empNum}")
 
         return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
             userRepository.getUserId(name, empNum)
