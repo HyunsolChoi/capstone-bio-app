@@ -165,7 +165,7 @@ class SafetyCheckViewModel @Inject constructor(
             try {
                 val session = _currentSession.value ?: throw Exception("세션이 없습니다")
                 val userId = getUserId() ?: throw Exception("사용자 정보를 찾을 수 없습니다")
-                val userEmpNum = getUserEmpNum() ?: throw Exception("사용자 정보를 찾을 수 없습니다")
+                val userEmpNum = getUserEmpNum() ?: throw Exception("사용자 사번정보를 찾을 수 없습니다")
                 val userProfile = getUserProfile() ?: throw Exception("사용자 프로필을 찾을 수 없습니다")
 
                 val (dept, name) = userProfile
