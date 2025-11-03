@@ -109,8 +109,6 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         val name = prefs.getString("user_name", null)
         val empNum = prefs.getString("emp_num", null)
 
-        Log.d("SafetyCheck-userId", "이름: ${name} 사번: ${empNum}")
-
         return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
             userRepository.getUserId(name, empNum)
         } else {

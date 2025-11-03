@@ -63,10 +63,12 @@ class SafetyCheckViewModel @Inject constructor(
 
     private fun getUserId(): String? {
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val name = prefs.getString("user_name", "") ?: ""
-        val empNum = prefs.getString("user_empNum", "") ?: ""
+        val name = prefs.getString("user_name", null)
+        val empNum = prefs.getString("emp_num", null)
 
-        return if (name.isNotEmpty() && empNum.isNotEmpty()) {
+        Log.d("SafetyCheck-userId", "이름: ${name} 사번: ${empNum}")
+
+        return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
             userRepository.getUserId(name, empNum)
         } else {
             null

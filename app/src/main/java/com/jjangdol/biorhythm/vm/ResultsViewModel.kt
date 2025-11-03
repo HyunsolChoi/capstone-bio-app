@@ -1,4 +1,3 @@
-// app/src/main/java/com/jjangdol/biorhythm/vm/ResultsViewModel.kt
 package com.jjangdol.biorhythm.vm
 
 import android.app.Application
@@ -32,12 +31,10 @@ class ResultsViewModel @Inject constructor(
 
     private fun getUserId(): String? {
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        //val dept = prefs.getString("user_dept", "") ?: ""
-        val name = prefs.getString("user_name", "") ?: ""
-        //val dob = prefs.getString("dob", "") ?: ""
-        val empNum = prefs.getString("user_empNum", "") ?: ""
+        val name = prefs.getString("user_name", null)
+        val empNum = prefs.getString("emp_num", null)
 
-        return if (name.isNotEmpty() && empNum.isNotEmpty()) {
+        return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
             userRepository.getUserId(name, empNum)
         } else {
             null
