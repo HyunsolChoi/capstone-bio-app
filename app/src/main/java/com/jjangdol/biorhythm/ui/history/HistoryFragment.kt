@@ -3,6 +3,7 @@ package com.jjangdol.biorhythm.ui.history
 import android.app.DatePickerDialog
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -133,23 +134,21 @@ class HistoryFragment : Fragment(R.layout.fragment_history) {
         }
     }
 
-    private fun getUserId(): String? {
+    private fun getUserEmpNum(): String? {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: ""
-        val name = prefs.getString("user_name", "") ?: ""
-        val dob = prefs.getString("dob", "") ?: ""
-        val empNum = prefs.getString("user_empNum", "") ?: ""
+        val name = prefs.getString("user_name", null)
+        val empNum = prefs.getString("emp_num", null)
 
-        return if (dept.isNotEmpty() && name.isNotEmpty() && dob.isNotEmpty()) {
-            userRepository.getUserId(name, empNum)
+        return if (!empNum.isNullOrEmpty() && !name.isNullOrEmpty()) {
+            empNum
         } else {
             null
         }
     }
 
     private fun loadHistoryData() {
-        val userId = getUserId()
-        if (userId == null) {
+        val empNum = getUserEmpNum()
+        if (empNum == null) {
             Toast.makeText(requireContext(), "사용자 정보를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
             binding.progressBar.visibility = View.GONE
             binding.emptyLayout.visibility = View.VISIBLE
@@ -157,13 +156,15 @@ class HistoryFragment : Fragment(R.layout.fragment_history) {
             return
         }
 
+        Log.d("History-Log", "userId: $empNum")
+
         binding.progressBar.visibility = View.VISIBLE
         binding.recyclerView.visibility = View.GONE
         binding.emptyLayout.visibility = View.GONE
 
         // Firestore에서 모든 daily 문서를 가져오기
         db.collection("results")
-            .document(userId)
+            .document(empNum)
             .collection("daily")
             .get()
             .addOnSuccessListener { documents ->

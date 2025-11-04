@@ -110,58 +110,10 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         val empNum = prefs.getString("emp_num", null)
 
         return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
-            userRepository.getUserId(name, empNum)
+            empNum
         } else {
             null
         }
-    }
-
-    private fun loadSessionResults() {
-        val session = safetyCheckViewModel.currentSession.value
-        if (session == null) {
-            Toast.makeText(requireContext(), "세션 정보가 없습니다", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        safetyCheckViewModel.sessionState.observe(viewLifecycleOwner) { state ->
-            when (state) {
-                is SafetyCheckViewModel.SessionState.Loading -> {
-                    binding.progressBar.visibility = View.VISIBLE
-                    binding.resultContent.visibility = View.GONE
-                }
-                is SafetyCheckViewModel.SessionState.Success -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.resultContent.visibility = View.VISIBLE
-                }
-                is SafetyCheckViewModel.SessionState.Error -> {
-                    Toast.makeText(requireContext(), state.message, Toast.LENGTH_SHORT).show()
-                }
-                else -> {}
-            }
-        }
-
-        // 최신 결과 로드
-        val userId = getUserId()
-        if (userId == null) {
-            Toast.makeText(requireContext(), "사용자 정보를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val today = LocalDate.now().format(dateFormatter)
-
-        db.collection("results")
-            .document(userId)
-            .collection("daily")
-            .document(today)
-            .get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    displayResults(document)
-                }
-            }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "결과 로드 실패", Toast.LENGTH_SHORT).show()
-            }
     }
 
     private fun loadTodayResults() {

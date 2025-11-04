@@ -59,9 +59,8 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
     private var signalQualityBuffer = mutableListOf<Float>()
 
     /* ───────────── Constants ───────────── */
-    private val MEASUREMENT_TIME = 30_000L
+    private val MEASUREMENT_TIME = 10_000L
     private val SAMPLING_RATE = 30
-    private val MIN_ACCEPTABLE_SIGNAL_LENGTH = 15_000L
 
     // 개선된 의학적/산업 기준 (점수 산출 + 안전 기준 병행)
     private val MIN_SIGNAL_QUALITY_THRESHOLD = 40f  // 신호 품질 최소 기준 (측정 실패 방지용)
@@ -75,7 +74,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
     /* ───────────── 개선된 데이터 모델 ───────────── */
     data class PPGMeasurementResult(
         val isValid: Boolean,
-        val score: Float,                        // 🔥 점수는 유지 (0-100)
+        val score: Float,                        // 점수는 유지 (0-100)
         val workFitness: WorkFitnessLevel,       // 안전 등급 (참고용)
         val heartRate: Float,
         val hrv: Float,
@@ -112,7 +111,6 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
     /* ─────────── UI & 버튼 ─────────── */
     private fun setupUI() = with(binding) {
         btnStart.setOnClickListener { startMeasurement() }
-        btnSkip.setOnClickListener { skipMeasurement() }
         btnRetry.setOnClickListener {
             resetMeasurement()
             startMeasurement()
@@ -392,7 +390,6 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
     /* ---------- UI 업데이트 ---------- */
     private fun updateSignalQualityDisplay(quality: Float) {
         val qualityText = when {
-            quality >= 60 -> "우수"
             quality >= 50 -> "좋음"
             quality >= 40 -> "보통"
             quality >= 30 -> "낮음"
@@ -402,7 +399,6 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
         binding.tvSignalQuality.apply {
             text = qualityText
             setTextColor(when {
-                quality >= 60 -> requireContext().getColor(android.R.color.holo_green_dark)
                 quality >= 50 -> requireContext().getColor(android.R.color.holo_blue_dark)
                 quality >= 40 -> requireContext().getColor(android.R.color.holo_orange_light)
                 else -> requireContext().getColor(android.R.color.holo_red_dark)
@@ -414,7 +410,6 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
         binding.ppgWaveformView?.addDataPoint(value)
         binding.ppgWaveformView?.setSignalQuality(
             when {
-                quality >= 60 -> PPGWaveformView.SignalQuality.EXCELLENT
                 quality >= 50 -> PPGWaveformView.SignalQuality.GOOD
                 quality >= 40 -> PPGWaveformView.SignalQuality.POOR
                 else -> PPGWaveformView.SignalQuality.NONE
@@ -449,13 +444,6 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
 
                         val remainingSeconds = (msLeft / 1000 + 1).toInt()
                         binding.tvTimer.text = "${remainingSeconds}초"
-
-                        if (rawPPGSignal.size > SAMPLING_RATE * 5) {
-                            val instantHR = estimateInstantHeartRate()
-                            binding.tvRealtimeBPM.text = instantHR.toInt().toString()
-                        } else {
-                            binding.tvRealtimeBPM.text = "--"
-                        }
                     }
                 }
 
@@ -1031,7 +1019,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                     // 측정값 표시
                     tvHeartRate.text = "${result.heartRate.toInt()} BPM"
                     tvHRV.text = "${result.hrv.toInt()} ms"
-                    tvMeasurementTime.text = "30초"
+                    tvMeasurementTime.text = "15초"
 
                     // 안전 등급 표시
                     tvWorkFitness.text = result.workFitness.description
@@ -1260,8 +1248,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                     btnStart.isEnabled = false
                     tvInstruction.text = "카메라 준비 중..."
                     tvSignalQuality.text = "준비 중"
-                    tvTimer.text = "30초"
-                    tvRealtimeBPM.text = "--"
+                    tvTimer.text = "15초"
                 }
             }
 
@@ -1308,9 +1295,8 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
             resultButtons.visibility = View.GONE
             tvInstruction.text = "카메라에 손가락을 올려주세요"
             tvInstruction.setTextColor(requireContext().getColor(R.color.text_primary))
-            tvTimer.text = "30초"
+            tvTimer.text = "15초"
             tvSignalQuality.text = "준비 중"
-            tvRealtimeBPM.text = "--"
             fingerGuideImage.visibility = View.VISIBLE
             tvWorkFitness.visibility = View.GONE
         }

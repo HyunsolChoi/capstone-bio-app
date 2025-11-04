@@ -56,7 +56,7 @@ class SafetyCheckViewModel @Inject constructor(
     private fun getUserEmpNum(): String? {
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
 
-        val empNum = prefs.getString("user_empNum", "")
+        val empNum = prefs.getString("emp_num", null)
 
         return empNum
     }
@@ -77,7 +77,7 @@ class SafetyCheckViewModel @Inject constructor(
 
     private fun getUserProfile(): Pair<String, String>? {
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: "부서 미등록"
+        val dept = prefs.getString("user_dept", "") ?: "부서 미등록" // todo: 부서 디폴트 값 수정 혹은 하위 조건문 수정 필요
         val name = prefs.getString("user_name", "") ?: ""
 
         return if (name.isNotEmpty()) {
@@ -299,7 +299,6 @@ class SafetyCheckViewModel @Inject constructor(
         Log.d("SafetyCheck", "========== saveResultToFirestore 시작 ==========")
 
         val today = result.date
-        val userId = result.userId
         val empNum = result.empNum
 
         // 명시적으로 Map으로 변환

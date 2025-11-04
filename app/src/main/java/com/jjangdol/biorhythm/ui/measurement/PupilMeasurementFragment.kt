@@ -61,7 +61,7 @@ class PupilMeasurementFragment : BaseMeasurementFragment() {
     private var measurementTimer: CountDownTimer? = null
 
     // 측정 설정
-    private val MEASUREMENT_TIME = 30000L // 30초 측정
+    private val MEASUREMENT_TIME = 15000L // 15초 측정
     private val EYE_CLOSED_THRESHOLD = 0.2f // 눈 감김 판단 임계값
 
     /* ---------- onCreateView: 레이아웃 inflate ---------- */
@@ -103,6 +103,7 @@ class PupilMeasurementFragment : BaseMeasurementFragment() {
             startMeasurement()
         }
 
+        // todo: 배포 시에는 건너뛰기 항목 모두 제거 예정
         binding.btnSkip.setOnClickListener {
             skipMeasurement()
         }
@@ -393,7 +394,7 @@ class PupilMeasurementFragment : BaseMeasurementFragment() {
 
         // 측정 세부사항
         binding.tvFinalBlinkCount.text = "${blinkCount}회"
-        binding.tvMeasurementTime.text = "30초"
+        binding.tvMeasurementTime.text = "15초"
 
         // 버튼 그룹 변경
         binding.initialButtons.visibility = View.GONE
@@ -401,7 +402,7 @@ class PupilMeasurementFragment : BaseMeasurementFragment() {
     }
 
     private fun calculateFatigueScore(): Float {
-        val expectedBlinks = 8.5f // 이상적인 깜빡임 수 (30초 기준)
+        val expectedBlinks = 4.25f // 이상적인 깜빡임 수 (15초 기준)
 
         // 스냅샷 복사본 사용 (동시 수정 방지)
         val blinkSnapshot = blinkData.toList()

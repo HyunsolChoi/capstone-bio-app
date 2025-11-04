@@ -1,4 +1,3 @@
-// app/src/main/java/com/jjangdol/biorhythm/ui/weather/WeatherFragment.kt
 package com.jjangdol.biorhythm.ui.weather
 
 import android.Manifest
@@ -8,7 +7,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
-import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -19,18 +17,14 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.material.snackbar.Snackbar
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentWeatherBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
-import java.time.LocalTime
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import android.widget.TextView
-import android.util.TypedValue
 import android.widget.EditText
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController

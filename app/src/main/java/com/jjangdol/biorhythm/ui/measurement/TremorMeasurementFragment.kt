@@ -80,9 +80,9 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
 
     // 측정 설정
     private val CALIBRATION_TIME = 3000L // 3초 캘리브레이션
-    private val MEASUREMENT_TIME = 15000L // 15초 측정 (더 안정적인 분석을 위해 증가)
+    private val MEASUREMENT_TIME = 10000L // 10초 측정
     private val SAMPLE_RATE = 50 // Hz
-    private val MIN_MEASUREMENT_TIME = 10000L // 최소 측정 시간
+    private val MIN_MEASUREMENT_TIME = 9000L // 최소 측정 시간
 
     // 사용자 프로필 추가
     private var userProfile: UserProfile? = null
@@ -307,11 +307,6 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
 
         // UI 업데이트
         showResults(score)
-
-//        // 결과 저장 후 다음으로
-//        binding.btnNext.setOnClickListener {
-//            onMeasurementComplete(score, rawData)
-//        }
     }
 
     private fun validateMeasurementQuality(data: List<Triple<Float, Float, Float>>): Boolean {
