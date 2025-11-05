@@ -8,7 +8,7 @@ import kotlinx.parcelize.RawValue
 enum class MeasurementType(val displayName: String, val description: String) {
     TREMOR("손떨림 측정", "스마트폰을 들고 10초간 측정합니다"),
     PUPIL("피로도 측정", "카메라를 통해 눈 상태를 확인합니다"),
-    PPG("심박 측정", "카메라에 손가락을 대고 15초간 측정합니다")
+    PPG("심박 측정", "카메라에 손가락을 대고 10초간 측정합니다")
 }
 
 /* ---------- 측정 결과 ---------- */

@@ -140,6 +140,11 @@
             app:nullable="true"
             android:defaultValue="@null" />
         <argument
+            android:name="recordDate"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
             android:name="rawData"
             app:argType="string"
             app:nullable="true"

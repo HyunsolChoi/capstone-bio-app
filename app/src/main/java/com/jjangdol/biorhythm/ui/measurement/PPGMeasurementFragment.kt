@@ -59,7 +59,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
     private var signalQualityBuffer = mutableListOf<Float>()
 
     /* ───────────── Constants ───────────── */
-    private val MEASUREMENT_TIME = 10_000L
+    private val MEASUREMENT_TIME = 10_000L // 10초
     private val SAMPLING_RATE = 30
 
     // 개선된 의학적/산업 기준 (점수 산출 + 안전 기준 병행)
@@ -1019,7 +1019,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                     // 측정값 표시
                     tvHeartRate.text = "${result.heartRate.toInt()} BPM"
                     tvHRV.text = "${result.hrv.toInt()} ms"
-                    tvMeasurementTime.text = "15초"
+                    tvMeasurementTime.text = "10초"
 
                     // 안전 등급 표시
                     tvWorkFitness.text = result.workFitness.description
@@ -1160,10 +1160,12 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                 // VM에 결과 반영하기
                 onMeasurementComplete(result.score, rawData)
 
-                val direction = PPGMeasurementFragmentDirections
-                    .actionPpgToResult(sessionId, rawData)
-
-                findNavController().navigate(direction)
+                val bundle = Bundle().apply {
+                    putBoolean("isMeasurementComplete", true) // 측정이 완료되었다는 신호
+                    putString("sessionId", sessionId)
+                    putString("rawData", rawData)
+                }
+                findNavController().navigate(R.id.action_ppg_to_result, bundle)
             }
 
             WorkFitnessLevel.CRITICAL -> showCriticalDialog(result)
@@ -1185,9 +1187,22 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val action = PPGMeasurementFragmentDirections
-                    .actionPpgToResult(sessionId)
-                findNavController().navigate(action)
+                // MainFragment로 이동 + sessionId 전달
+                val bundle = Bundle().apply {
+                    putString("sessionId", sessionId)
+                    putString("navigateTo", "result")  // MainFragment에서 result로 이동하라는 플래그
+                }
+
+                findNavController().navigate(
+                    R.id.mainFragment,
+                    bundle,
+                    androidx.navigation.navOptions {
+                        popUpTo(R.id.mainFragment) {
+                            inclusive = false
+                        }
+                        launchSingleTop = true
+                    }
+                )
             } catch (e: Exception) {
                 Log.e("PPGMeasurement", "네비게이션 실패", e)
             }
@@ -1248,7 +1263,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                     btnStart.isEnabled = false
                     tvInstruction.text = "카메라 준비 중..."
                     tvSignalQuality.text = "준비 중"
-                    tvTimer.text = "15초"
+                    tvTimer.text = "10초"
                 }
             }
 
@@ -1295,7 +1310,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
             resultButtons.visibility = View.GONE
             tvInstruction.text = "카메라에 손가락을 올려주세요"
             tvInstruction.setTextColor(requireContext().getColor(R.color.text_primary))
-            tvTimer.text = "15초"
+            tvTimer.text = "10초"
             tvSignalQuality.text = "준비 중"
             fingerGuideImage.visibility = View.VISIBLE
             tvWorkFitness.visibility = View.GONE

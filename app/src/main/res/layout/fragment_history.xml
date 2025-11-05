@@ -14,10 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/primary_color"
-        app:title="기록 보기"
-        app:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/ic_arrow_back"
-        app:navigationIconTint="@android:color/white" />
+        app:title="기록 보기" />
 
     <!-- 필터 섹션 -->
     <LinearLayout

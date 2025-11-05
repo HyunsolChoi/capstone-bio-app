@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.jjangdol.biorhythm.R
@@ -46,6 +47,7 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         _binding = FragmentResultBinding.bind(view)
 
         val sessionId = args.sessionId
+        val recordDate = arguments?.getString("recordDate")
 
         if (sessionId != null) {
             // 측정 후 결과 표시 - Flow로부터 즉시 값 가져오기
@@ -55,14 +57,40 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
             } else {
                 Toast.makeText(requireContext(), "세션 데이터를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
             }
+        } else if (recordDate != null) {
+            // 특정 날짜 결과 조회 (History에서 온 경우)
+            loadResultsByDate(recordDate)
         } else {
-            // 오늘 결과 Firestore에서 조회
+            // 오늘 결과 조회 (바텀네비에서 직접 온 경우)
             loadTodayResults()
         }
 
         setupButtons()
     }
 
+    private fun loadResultsByDate(date: String) {
+        val empNum = getUserEmpNum()
+        if (empNum == null) {
+            Toast.makeText(requireContext(), "사용자 정보를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        db.collection("results")
+            .document(empNum)
+            .collection("daily")
+            .document(date)  // 전달받은 날짜로 조회
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    displayResults(document)
+                } else {
+                    Toast.makeText(requireContext(), "해당 날짜의 결과가 없습니다", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "결과 로드 실패", Toast.LENGTH_SHORT).show()
+            }
+    }
 
     private fun displaySessionResults(session: com.jjangdol.biorhythm.model.SafetyCheckSession) {
         val checklistScore = safetyCheckViewModel.checklistScore.value ?: 0
@@ -104,7 +132,7 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         }
     }
 
-    private fun getUserId(): String? {
+    private fun getUserEmpNum(): String? {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val name = prefs.getString("user_name", null)
         val empNum = prefs.getString("emp_num", null)
@@ -117,8 +145,8 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
     }
 
     private fun loadTodayResults() {
-        val userId = getUserId()
-        if (userId == null) {
+        val empNum = getUserEmpNum()
+        if (empNum == null) {
             Toast.makeText(requireContext(), "사용자 정보를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
             return
         }
@@ -126,7 +154,7 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         val today = LocalDate.now().format(dateFormatter)
 
         db.collection("results")
-            .document(userId)
+            .document(empNum)
             .collection("daily")
             .document(today)
             .get()
@@ -347,22 +375,34 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
             binding.btnHistory.visibility = View.VISIBLE
         }
 
-        // 기록보기 버튼 (공통)
+        // 기록보기 버튼
         binding.btnHistory.setOnClickListener {
+            Log.d("HistoryButton", "clicked!")
+
             try {
-                findNavController().navigate(R.id.action_result_to_history)
-            } catch (e: Exception) {
-                try {
-                    // 글로벌 액션 시도
-                    findNavController().navigate(R.id.action_global_to_history)
-                } catch (e2: Exception) {
-                    try {
-                        // 직접 이동 시도
-                        findNavController().navigate(R.id.historyFragment)
-                    } catch (e3: Exception) {
-                        Toast.makeText(requireContext(), "기록 보기 화면으로 이동할 수 없습니다", Toast.LENGTH_SHORT).show()
-                    }
+                // MainFragment를 Activity의 supportFragmentManager에서 찾기
+                val mainFragment = requireActivity()
+                    .supportFragmentManager
+                    .findFragmentById(R.id.mainFragment)
+
+                // MainFragment 내부의 child NavHostFragment 찾기
+                val childNavHost = mainFragment
+                    ?.childFragmentManager
+                    ?.findFragmentById(R.id.bottomNavHost) as? NavHostFragment
+
+                if (childNavHost == null) {
+                    Toast.makeText(requireContext(), "MainFragment의 NavHost를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
+                    Log.e("HistoryButton", "bottomNavHost not found in MainFragment")
+                    return@setOnClickListener
                 }
+
+                val childNavController = childNavHost.navController
+                childNavController.navigate(R.id.historyFragment)
+                Toast.makeText(requireContext(), "기록 보기로 이동", Toast.LENGTH_SHORT).show()
+
+            } catch (e: Exception) {
+                Log.e("HistoryButton", "Navigation failed", e)
+                Toast.makeText(requireContext(), "이동 중 오류: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -60,14 +60,19 @@ class HistoryFragment : Fragment(R.layout.fragment_history) {
 
     private fun setupRecyclerView() {
         historyAdapter = HistoryAdapter { historyItem ->
-            // 기록 아이템 클릭 시 상세 결과 화면으로 이동
             try {
-                findNavController().navigate(R.id.action_history_to_result)
+                Log.d("History-Log", "record_date: ${historyItem.date}")
+                val bundle = Bundle().apply {
+                    putString("recordDate", historyItem.date)
+                }
+                findNavController().navigate(
+                    R.id.action_history_to_result,
+                    bundle
+                )
             } catch (e: Exception) {
                 Toast.makeText(requireContext(), "결과 화면으로 이동할 수 없습니다", Toast.LENGTH_SHORT).show()
             }
         }
-
         binding.recyclerView.apply {
             adapter = historyAdapter
             layoutManager = LinearLayoutManager(requireContext())

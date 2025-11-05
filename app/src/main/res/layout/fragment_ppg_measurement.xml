@@ -77,7 +77,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="후면 카메라에 손가락을 올리고\n15초간 가만히 있어주세요"
+                android:text="후면 카메라에 손가락을 올리고\n10초간 가만히 있어주세요"
                 android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:gravity="center"
@@ -245,7 +245,7 @@
                                 android:id="@+id/tvTimer"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="15초"
+                                android:text="10초"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/text_primary" />
@@ -432,7 +432,7 @@
                             android:textSize="18sp"
                             android:textStyle="bold"
                             android:textColor="@color/text_primary"
-                            tools:text="15초" />
+                            tools:text="10초" />
 
                     </LinearLayout>
 

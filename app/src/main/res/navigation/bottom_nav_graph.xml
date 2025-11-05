@@ -54,7 +54,7 @@
     <fragment
         android:id="@+id/weatherFragment"
         android:name="com.jjangdol.biorhythm.ui.weather.WeatherFragment"
-        android:label="기상 정보" />
+        android:label="기상정보" />
 
     <!-- 5) 기록 보기 -->
     <fragment
@@ -67,5 +67,4 @@
             android:id="@+id/action_history_to_result"
             app:destination="@id/resultFragment" />
     </fragment>
-
 </navigation>
