@@ -36,6 +36,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import kotlin.math.*
+import com.google.firebase.firestore.Source
 
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
@@ -485,6 +486,9 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         // 관리자 버튼
         binding.tvAdminLink.setOnClickListener {
             val input = EditText(requireContext())  //  EditText 생성
+            val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            val empNum = prefs.getString("emp_num", null) ?: return@setOnClickListener  // 현재 로그인한 사번 불러오기
+
             input.hint = "관리자 비밀번호"
 
             AlertDialog.Builder(requireContext())
@@ -493,10 +497,13 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 .setPositiveButton("확인") { dialog, _ ->
                     val password = input.text.toString().trim()
 
+
                     val db = FirebaseFirestore.getInstance()
+
+
                     db.collection("employees")
-                        .document("000000") // 관리자 문서
-                        .get()
+                        .document(empNum) // 관리자 문서
+                        .get(Source.SERVER)
                         .addOnSuccessListener { doc ->
                             if (doc.exists()) {
                                 val savedPw = doc.getString("Password") ?: ""

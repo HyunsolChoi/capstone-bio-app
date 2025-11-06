@@ -21,6 +21,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
@@ -49,6 +50,7 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
     private var selectedScoreFilter: ScoreFilter = ScoreFilter.ALL
     private var allResults: List<ChecklistResult> = emptyList() // 캐시된 결과
 
+
     enum class ScoreFilter {
         ALL, DANGER, CAUTION, SAFE
     }
@@ -59,6 +61,8 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
 
         binding.tvHomeLink.setOnClickListener{
             findNavController().navigate(R.id.action_newAdminFragment_to_main)}
+
+
 
         setupRecyclerView()
         setupClickListeners()
@@ -283,11 +287,18 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
 
     // Firebase를 사용한 비밀번호 확인
     private fun checkCurrentPassword(inputPassword: String, callback: (Boolean) -> Unit) {
-        firestore.collection("password")
-            .document("admin")
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null)
+
+        if (empNum.isNullOrEmpty()) {
+            return
+        }
+
+        firestore.collection("employees")
+            .document(empNum)
             .get()
             .addOnSuccessListener { document ->
-                val savedPassword = document.getString("password") ?: "admin123"
+                val savedPassword = document.getString("Password") ?: "admin123"
                 callback(inputPassword == savedPassword)
             }
             .addOnFailureListener { exception ->
@@ -300,11 +311,17 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
 
     // Firebase를 사용한 비밀번호 업데이트
     private fun updatePasswordInFirebase(newPassword: String) {
-        val passwordData = mapOf("password" to newPassword)
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null)
+        val passwordData = mapOf("Password" to newPassword)
 
-        firestore.collection("password")
-            .document("admin")
-            .set(passwordData)
+        if (empNum.isNullOrEmpty()) {
+            return
+        }
+
+        firestore.collection("employees")
+            .document(empNum)
+            .set(passwordData, SetOptions.merge())
             .addOnSuccessListener {
                 if (isAdded && _binding != null && !requireActivity().isFinishing) {
                     Toast.makeText(requireContext(), "비밀번호가 성공적으로 변경되었습니다", Toast.LENGTH_SHORT).show()
