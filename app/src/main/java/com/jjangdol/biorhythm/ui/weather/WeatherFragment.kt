@@ -37,6 +37,9 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 import kotlin.math.*
 import com.google.firebase.firestore.Source
+import android.text.InputFilter
+import android.text.InputType
+import android.text.method.DigitsKeyListener
 
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
@@ -485,51 +488,57 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
         // 관리자 버튼
         binding.tvAdminLink.setOnClickListener {
-            val input = EditText(requireContext())  //  EditText 생성
             val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
             val empNum = prefs.getString("emp_num", null) ?: return@setOnClickListener  // 현재 로그인한 사번 불러오기
 
-            input.hint = "관리자 비밀번호"
+            val input = EditText(requireContext()).apply {
+                hint = "관리자 비밀번호"
+                inputType = InputType.TYPE_CLASS_NUMBER
+                keyListener = DigitsKeyListener.getInstance("0123456789")
+            }
 
-            AlertDialog.Builder(requireContext())
+            val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("관리자 비밀번호 입력")
                 .setView(input)
-                .setPositiveButton("확인") { dialog, _ ->
-                    val password = input.text.toString().trim()
+                .setPositiveButton("확인", null)
+                .setNegativeButton("취소", null)
+                .create()
 
+            dialog.setOnShowListener{
+                val okBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                okBtn.setOnClickListener {
+                    val password = input.text.toString().trim()
+                    if (password.isEmpty())
+                    {
+                        Toast.makeText(requireContext(), "비밀번호를 입력하세요.", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
 
                     val db = FirebaseFirestore.getInstance()
-
-
                     db.collection("employees")
-                        .document(empNum) // 관리자 문서
+                        .document(empNum)
                         .get(Source.SERVER)
                         .addOnSuccessListener { doc ->
-                            if (doc.exists()) {
-                                val savedPw = doc.getString("Password") ?: ""
-                                if (savedPw == password) {
-                                    Toast.makeText(requireContext(), "관리자 로그인 성공", Toast.LENGTH_SHORT).show()
-                                    Log.d("NavDebug", "현재 Destination = ${findNavController().currentDestination?.id}, label=${findNavController().currentDestination?.label}")
-                                    Log.d("NavDebug", "현재 Graph id=${findNavController().graph.id}, start=${findNavController().graph.startDestinationId}")
-
-                                    // WeatherFragment.kt 내에서
-                                    // requireActivity()를 통해 Activity의 NavController를 가져옵니다.
-                                    // R.id.nav_host_fragment는 Activity 레이아웃에 정의된 NavHostFragment의 ID여야 합니다.
-                                    val mainNavController = requireActivity().findNavController(R.id.navHostFragment) // nav_host_fragment ID를 실제 ID로 변경
-                                    mainNavController.navigate(R.id.action_main_to_newAdmin)
-                                } else {
-                                    Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다", Toast.LENGTH_SHORT).show()
-                                }
-                            } else {
+                            if (!doc.exists()) {
                                 Toast.makeText(requireContext(), "관리자 계정이 존재하지 않습니다", Toast.LENGTH_SHORT).show()
+                                return@addOnSuccessListener
                             }
+
+                            val savedPwStr = doc.getString("Password")
+
+                            if (savedPwStr == password) {
+                                Toast.makeText(requireContext(), "관리자 로그인 성공", Toast.LENGTH_SHORT).show()
+                                dialog.dismiss()
+                                val mainNavController = requireActivity().findNavController(R.id.navHostFragment)
+                                mainNavController.navigate(R.id.action_main_to_newAdmin)
+                            } else { Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다", Toast.LENGTH_SHORT).show() }
                         }
                         .addOnFailureListener { e ->
                             Toast.makeText(requireContext(), "Firestore 오류: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                 }
-                .setNegativeButton("취소", null)
-                .show()
+            }
+            dialog.show()
         }
     }
 }
