@@ -12,13 +12,30 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class UserNotificationViewModel @Inject constructor(
     private val userNotificationRepository: UserNotificationRepository
 ) : ViewModel() {
+
+    sealed class AttachmentEvent
+    {
+        data class Open(val url: String) : AttachmentEvent()
+        data class Download(val url: String, val fileName: String) : AttachmentEvent()
+        data class Message(val text: String) : AttachmentEvent()
+    }
+
+    private val _attachmentEvents = MutableSharedFlow<AttachmentEvent>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
+    val attachmentEvents = _attachmentEvents.asSharedFlow()
 
     private val firestore = Firebase.firestore
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
@@ -154,9 +171,40 @@ class UserNotificationViewModel @Inject constructor(
         }
     }
 
-
-
     fun refreshNotifications() {
         _uiState.value = UiState.Success("알림을 새로고침했습니다")
+    }
+
+    //첨부파일
+    private fun guessFileName(url: String): String {
+        val cleaned = url.substringBefore('?')
+        val name = cleaned.substringAfterLast('/')
+        return if (name.isBlank()) "attachment" else name
+    }
+
+    fun requestOpenAttachment(url: String) {
+        viewModelScope.launch {
+            if (url.isBlank())
+            {
+                _attachmentEvents.emit(AttachmentEvent.Message("잘못된 URL 입니다."))
+            }
+            else
+            {
+                _attachmentEvents.emit(AttachmentEvent.Open(url))
+            }
+        }
+    }
+
+    fun requestDownloadAttachment(url: String) {
+        viewModelScope.launch {
+            if (url.isBlank())
+            {
+                _attachmentEvents.emit(AttachmentEvent.Message("잘못된 URL 입니다."))
+            }
+            else
+            {
+                _attachmentEvents.emit(AttachmentEvent.Download(url, guessFileName(url)))
+            }
+        }
     }
 }

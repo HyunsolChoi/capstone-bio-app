@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- 설명 : 사용자가 알림을 열었을 때(눌렀을 때) 나오는 뷰  -->
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <!-- 본문 -->
+    <TextView
+        android:id="@+id/tvContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="?android:textColorPrimary"
+        android:textSize="16sp"
+        android:lineSpacingExtra="2dp"
+        android:paddingBottom="12dp" />
+
+    <!-- 첨부파일 영역 -->
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chipGroupAttachments"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleLine="false"
+        app:singleSelection="false"
+        android:visibility="gone"
+        android:paddingTop="4dp"/>
+</LinearLayout>

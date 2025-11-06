@@ -17,7 +17,8 @@ data class Notification(
     val createdAt: Timestamp? = null,
     @ServerTimestamp
     val updatedAt: Timestamp? = null,
-    val createdBy: String = "admin"
+    val createdBy: String = "admin",
+    val attachmentUrl: List<String> = emptyList()
 ) {
     // Firestore용 빈 생성자
     constructor() : this(

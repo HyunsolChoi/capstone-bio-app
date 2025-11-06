@@ -104,56 +104,75 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- 우선순위 선택 -->
                     <TextView
+                        android:id="@+id/tvAttachmentStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="우선순위"
+                        android:text="첨부된 파일이 없습니다."
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
                         android:layout_marginBottom="8dp" />
 
-                    <com.google.android.material.chip.ChipGroup
-                        android:id="@+id/chipGroupPriority"
+                    <!-- 우선순위 선택 및 파일첨부 레이아웃 -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        app:singleSelection="true"
-                        app:checkedChip="@id/chipNormal">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipHigh"
-                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                        <!-- 우선순위 칩 그룹 + 파일 첨부 버튼 -->
+                        <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chipGroupPriority"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            app:singleSelection="true"
+                            app:checkedChip="@id/chipNormal">
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipHigh"
+                                style="@style/Widget.MaterialComponents.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="긴급"
+                                app:chipBackgroundColor="#FFEBEE"
+                                app:chipStrokeColor="#F44336"
+                                android:textColor="#F44336" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipNormal"
+                                style="@style/Widget.MaterialComponents.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="일반"
+                                android:checked="true"
+                                app:chipBackgroundColor="#E3F2FD"
+                                app:chipStrokeColor="#2196F3"
+                                android:textColor="#2196F3" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipLow"
+                                style="@style/Widget.MaterialComponents.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="안내"
+                                app:chipBackgroundColor="#E8F5E8"
+                                app:chipStrokeColor="#4CAF50"
+                                android:textColor="#4CAF50" />
+
+                        </com.google.android.material.chip.ChipGroup>
+
+                        <!-- todo: 디자인 변경 해야할 수도 있음 -->
+                        <Button
+                            android:id="@+id/btnAddFile"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="긴급"
-                            app:chipBackgroundColor="#FFEBEE"
-                            app:chipStrokeColor="#F44336"
-                            android:textColor="#F44336" />
+                            android:text="첨부파일"
+                            android:layout_marginStart="8dp" />
+                    </LinearLayout>
 
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipNormal"
-                            style="@style/Widget.MaterialComponents.Chip.Filter"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="일반"
-                            android:checked="true"
-                            app:chipBackgroundColor="#E3F2FD"
-                            app:chipStrokeColor="#2196F3"
-                            android:textColor="#2196F3" />
 
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipLow"
-                            style="@style/Widget.MaterialComponents.Chip.Filter"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="안내"
-                            app:chipBackgroundColor="#E8F5E8"
-                            app:chipStrokeColor="#4CAF50"
-                            android:textColor="#4CAF50" />
-
-                    </com.google.android.material.chip.ChipGroup>
 
                     <!-- 버튼들 -->
                     <LinearLayout

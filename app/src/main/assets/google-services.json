@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "581520433294",
+    "firebase_url": "https://bio-app-d2b71-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "bio-app-d2b71",
+    "storage_bucket": "bio-app-d2b71.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:581520433294:android:81b8b46c066fc34b03e9df",
+        "android_client_info": {
+          "package_name": "com.jjangdol.biorhythm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8ddzTMYji19KGGlJq5YypxEeIUPQygVY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

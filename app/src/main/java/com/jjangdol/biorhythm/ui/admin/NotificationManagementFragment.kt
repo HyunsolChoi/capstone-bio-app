@@ -18,6 +18,9 @@ import com.jjangdol.biorhythm.vm.NotificationManagementViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.result.contract.ActivityResultContracts
 
 @AndroidEntryPoint
 class NotificationManagementFragment : Fragment(R.layout.fragment_notification_management) {
@@ -30,6 +33,15 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
 
     private var selectedPriority = NotificationPriority.NORMAL
     private var filterPriority: NotificationPriority? = null
+
+    private val selectedAttachmentUris = mutableListOf<Uri>()
+
+    private val openDocuments = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments())
+    { uris ->
+        if (!uris.isNullOrEmpty()) {
+            addAttachments(uris)
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -77,6 +89,12 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                 R.id.chipLow -> NotificationPriority.LOW
                 else -> NotificationPriority.NORMAL
             }
+        }
+
+        // 파일첨부 버튼
+        binding.btnAddFile.setOnClickListener {
+            // MIME 타입 원하는 대로 제한 가능: image/*, application/pdf 등
+            openDocuments.launch(arrayOf("image/*", "application/pdf"))
         }
 
         // 필터 선택
@@ -160,8 +178,38 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                 binding.etNotificationContent.requestFocus()
             }
             else -> {
-                viewModel.createNotification(title, content, selectedPriority)
+                viewModel.createNotification(title, content, selectedPriority, attachments = selectedAttachmentUris.toList())
             }
+        }
+    }
+
+    private fun addAttachments(newUris: List<Uri>) {
+        // 권한
+        newUris.forEach { uri -> requireContext().contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        // 중복 제거 후 추가
+        val current = selectedAttachmentUris.map { it.toString() }.toMutableSet()
+        newUris.forEach { uri ->
+            if (current.add(uri.toString())) { selectedAttachmentUris.add(uri) }
+        }
+
+        // UI 갱신 (버튼 텍스트/칩/리사이클러 등)
+        binding.btnAddFile.text =
+            if (selectedAttachmentUris.isEmpty()) "첨부파일" else "첨부파일 (${selectedAttachmentUris.size})"
+        binding.tvAttachmentStatus.text =
+            if (selectedAttachmentUris.isEmpty()) "첨부된 파일이 없습니다"
+            else "${selectedAttachmentUris.size}개의 파일이 첨부되었습니다."
+    }
+
+    private fun openAttachmentUrl(url: String) {
+        try
+        {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+
+            startActivity(Intent.createChooser(intent, "첨부파일 열기"))
+        }
+        catch (e: Exception)
+        {
+            Toast.makeText(requireContext(), "파일을 열 수 없습니다: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -170,6 +218,7 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         binding.etNotificationContent.text?.clear()
         binding.chipGroupPriority.check(R.id.chipNormal)
         selectedPriority = NotificationPriority.NORMAL
+        selectedAttachmentUris.clear()
     }
 
     private fun showNotificationDetailDialog(notification: Notification) {

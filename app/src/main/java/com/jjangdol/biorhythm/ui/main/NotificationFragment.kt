@@ -1,9 +1,13 @@
 // app/src/main/java/com/jjangdol/biorhythm/ui/main/NotificationFragment.kt
 package com.jjangdol.biorhythm.ui.main
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.webkit.MimeTypeMap
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -39,7 +43,6 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
         setupClickListeners()
         observeViewModel()
     }
-
 
     private fun setupRecyclerView() {
         notificationAdapter = UserNotificationAdapter(
@@ -105,6 +108,57 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
         }
     }
 
+    private fun openAttachmentUrl(url: String) {
+        val uri = Uri.parse(url)
+        val mime = guessMimeFromUrl(url)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            if (mime != null) { setDataAndType(uri, mime) }
+            else { data = uri }
+        }
+        try
+        { startActivity(intent) }
+        catch (e: ActivityNotFoundException)
+        { Toast.makeText(context, "열 수 있는 앱이 없습니다.", Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun guessMimeFromUrl(url: String): String? {
+        val ext = MimeTypeMap.getFileExtensionFromUrl(url)
+        return if (ext.isNullOrBlank()) null else MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase())
+    }
+
+    private fun downloadAttachment(url: String, fileName: String = guessFileName(url)) {
+        try
+        {
+            val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+                .setTitle(fileName)
+                .setDescription("첨부파일 다운로드 중")
+                .setNotificationVisibility(
+                    android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                )
+                .setDestinationInExternalPublicDir(
+                    android.os.Environment.DIRECTORY_DOWNLOADS,fileName
+                )
+                .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(true)
+
+            val dm = requireContext()
+                .getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            dm.enqueue(request)
+
+            Toast.makeText(requireContext(), "다운로드를 시작했습니다.", Toast.LENGTH_SHORT).show()
+        }
+        catch (e: Exception)
+        {
+            Toast.makeText(requireContext(), "다운로드 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun guessFileName(url: String): String {
+        val cleaned = url.substringBefore('?')
+        val name = cleaned.substringAfterLast('/')
+        return if (name.isBlank()) "attachment" else name
+    }
+
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.notifications.collectLatest { notifications ->
@@ -125,7 +179,7 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
             }
         }
 
-        // 🔥 읽음 상태 변경 관찰 추가 - 이게 핵심!
+        //  읽음 상태 변경 관찰 추가
         viewLifecycleOwner.lifecycleScope.launch {
             // UserNotificationRepository의 readNotificationIds Flow 관찰
             // (실제로는 UserNotificationViewModel을 통해 접근해야 함)
@@ -139,7 +193,7 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
                         binding.progressBar.visibility = View.GONE
                         if (state.message.isNotEmpty()) {
                             Toast.makeText(requireContext(), state.message, Toast.LENGTH_SHORT).show()
-                            // 🔥 성공 메시지가 있을 때 어댑터 갱신
+                            // 성공 메시지가 있을 때 어댑터 갱신
                             notificationAdapter.notifyDataSetChanged()
                         }
                     }
@@ -153,12 +207,63 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
                 }
             }
         }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.attachmentEvents.collectLatest { event ->
+                when (event) {
+                    is UserNotificationViewModel.AttachmentEvent.Open -> {
+                        openAttachmentUrl(event.url)
+                    }
+                    is UserNotificationViewModel.AttachmentEvent.Download -> {
+                        downloadAttachment(event.url, event.fileName)
+                    }
+                    is UserNotificationViewModel.AttachmentEvent.Message -> {
+                        Toast.makeText(requireContext(), event.text, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
     }
 
+    // todo 미리보기 구현
     private fun showNotificationDetail(notification: Notification) {
+        val inflater = layoutInflater
+        val view = inflater.inflate(R.layout.dialog_notification_detail, null)
+        val tvContent = view.findViewById<TextView>(R.id.tvContent)
+        val chipGroup = view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupAttachments)
+
+        // 본문
+        tvContent.text = notification.content
+
+        // 첨부 URL 리스트
+        val urls: List<String> = notification.attachmentUrl ?: emptyList()
+        if (urls.isNotEmpty()) {
+            chipGroup.visibility = View.VISIBLE
+            chipGroup.removeAllViews()
+
+            urls.forEachIndexed { idx, url ->
+                val chip = com.google.android.material.chip.Chip(requireContext()).apply {
+                    text = buildString {
+                        append("첨부 ")
+                        append(idx + 1)
+                        val name = guessFileName(url)
+                        if (name.isNotBlank() && name != "attachment") append("  ($name)")
+                    }
+                    isClickable = true
+                    isCheckable = false
+
+                    setOnClickListener { openAttachmentUrl(url) }
+                }
+                chipGroup.addView(chip)
+            }
+        } else {
+            chipGroup.visibility = View.GONE
+        }
+
+        // 알림 다이얼로그
         AlertDialog.Builder(requireContext())
             .setTitle("${notification.priority.displayName} 알림")
-            .setMessage(notification.content)
+            .setView(view)
             .setPositiveButton("확인", null)
             .setNeutralButton("공유") { _, _ ->
                 shareNotification(notification)

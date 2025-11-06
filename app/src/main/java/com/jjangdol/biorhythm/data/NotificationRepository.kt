@@ -89,7 +89,8 @@ class NotificationRepository @Inject constructor() {
     suspend fun createNotification(
         title: String,
         content: String,
-        priority: NotificationPriority = NotificationPriority.NORMAL
+        priority: NotificationPriority = NotificationPriority.NORMAL,
+        attachmentUrl: List<String> = emptyList()
     ): Result<String> {
         return try {
             val notification = Notification(
@@ -97,7 +98,8 @@ class NotificationRepository @Inject constructor() {
                 content = content,
                 priority = priority,
                 active = true,  // isActive -> active 변경
-                createdBy = "admin"
+                createdBy = "admin",
+                attachmentUrl = attachmentUrl
             )
 
             val documentRef = notificationsCollection.add(notification).await()
