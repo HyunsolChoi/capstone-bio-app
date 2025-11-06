@@ -19,13 +19,22 @@ class MainFragment : Fragment(R.layout.fragment_main) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentMainBinding.bind(view)
 
-        // 1) childFragmentManager 에서 NavController 가져오기
+        // childFragmentManager 에서 NavController 가져오기
         val navHost = childFragmentManager
             .findFragmentById(R.id.bottomNavHost) as NavHostFragment
         val navController = navHost.navController
 
-        // 2) BottomNavigationView 와 NavController 연결
+        // BottomNavigationView 와 NavController 연결
         binding.bottomNav.setupWithNavController(navController)
+
+        // targetTab 값이 있으면, bottomNav가 완전히 초기화된 뒤 실행
+        val targetTab = arguments?.getInt("targetTab")
+        if (targetTab != null) {
+            binding.bottomNav.post {
+                navController.navigate(targetTab)              // 내부 NavGraph 직접 이동
+                binding.bottomNav.selectedItemId = targetTab   // UI 선택 상태 갱신
+            }
+        }
     }
 
     override fun onDestroyView() {

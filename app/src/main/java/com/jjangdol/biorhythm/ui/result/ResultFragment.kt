@@ -8,9 +8,11 @@ import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.navigation.Navigation
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.navigation.navOptions
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.data.UserRepository
 import com.jjangdol.biorhythm.databinding.FragmentResultBinding
@@ -377,34 +379,21 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
 
         // 기록보기 버튼
         binding.btnHistory.setOnClickListener {
-            Log.d("HistoryButton", "clicked!")
-
-            try {
-                // MainFragment를 Activity의 supportFragmentManager에서 찾기
-                val mainFragment = requireActivity()
-                    .supportFragmentManager
-                    .findFragmentById(R.id.mainFragment)
-
-                // MainFragment 내부의 child NavHostFragment 찾기
-                val childNavHost = mainFragment
-                    ?.childFragmentManager
-                    ?.findFragmentById(R.id.bottomNavHost) as? NavHostFragment
-
-                if (childNavHost == null) {
-                    Toast.makeText(requireContext(), "MainFragment의 NavHost를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
-                    Log.e("HistoryButton", "bottomNavHost not found in MainFragment")
-                    return@setOnClickListener
-                }
-
-                val childNavController = childNavHost.navController
-                childNavController.navigate(R.id.historyFragment)
-                Toast.makeText(requireContext(), "기록 보기로 이동", Toast.LENGTH_SHORT).show()
-
-            } catch (e: Exception) {
-                Log.e("HistoryButton", "Navigation failed", e)
-                Toast.makeText(requireContext(), "이동 중 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+            val args = Bundle().apply {
+                putInt("targetTab", R.id.historyFragment)
             }
+
+            val navController = Navigation.findNavController(requireActivity(), R.id.navHostFragment)
+            navController.navigate(
+                R.id.mainFragment,
+                args,
+                navOptions {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            )
         }
+
     }
 
     override fun onDestroyView() {
