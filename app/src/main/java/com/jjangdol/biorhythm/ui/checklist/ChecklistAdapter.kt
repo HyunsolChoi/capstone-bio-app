@@ -10,7 +10,7 @@ import com.jjangdol.biorhythm.model.ChecklistItem
 
 class ChecklistAdapter(
     private var items: List<ChecklistItem>,
-    private val onAnswerChanged: (pos: Int, yes: Boolean) -> Unit
+    private val onAnswerChanged: (pos: Int, selectedOption: Int) -> Unit
 ) : RecyclerView.Adapter<ChecklistAdapter.VH>() {
 
     inner class VH(private val b: ItemChecklistBinding) : RecyclerView.ViewHolder(b.root) {
@@ -18,28 +18,37 @@ class ChecklistAdapter(
         fun bind(item: ChecklistItem, isLast: Boolean) {
             b.tvQuestion.text = item.question
 
-            // 기존 리스너 제거 (중복 반응 방지)
-            b.btnYes.setOnCheckedChangeListener(null)
-            b.btnNo.setOnCheckedChangeListener(null)
+            // 모든 버튼 모아 배열로 관리
+            val buttons = listOf(
+                b.btnOption1,
+                b.btnOption2,
+                b.btnOption3,
+                b.btnOption4,
+                b.btnOption5
+            )
 
-            // 체크 상태 반영
-            b.btnYes.isChecked = item.answeredYes == true
-            b.btnNo.isChecked = item.answeredYes == false
+            // 표시할 개수 (options가 null이면 2개만)
+            val optionCount = item.options?.size ?: 2
 
-            // 변경된 후 리스너 재등록
-            b.btnYes.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    adapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.let {
-                        onAnswerChanged(it, true)
-                        notifyItemChanged(adapterPosition)
-                    }
+            // 버튼 표시 제어
+            buttons.forEachIndexed { index, btn ->
+                if (index < optionCount) {
+                    btn.visibility = View.VISIBLE
+                    // Firestore에서 정의된 options 텍스트 사용
+                    btn.text = item.options?.getOrNull(index) ?: (index + 1).toString()
+                } else {
+                    btn.visibility = View.GONE
                 }
-            }
 
-            b.btnNo.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    adapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.let {
-                        onAnswerChanged(it, false)
+                // 기존 리스너 제거
+                btn.setOnCheckedChangeListener(null)
+                // 체크 상태 반영
+                btn.isChecked = item.selectedOption == (index + 1)
+
+                // 새 리스너 등록
+                btn.setOnCheckedChangeListener { _, isChecked ->
+                    if (isChecked && adapterPosition != RecyclerView.NO_POSITION) {
+                        onAnswerChanged(adapterPosition, index + 1)
                         notifyItemChanged(adapterPosition)
                     }
                 }
@@ -49,7 +58,6 @@ class ChecklistAdapter(
             b.viewDivider.visibility = if (isLast) View.GONE else View.VISIBLE
         }
     }
-
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val b = ItemChecklistBinding.inflate(

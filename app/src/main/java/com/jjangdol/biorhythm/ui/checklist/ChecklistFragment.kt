@@ -2,7 +2,6 @@ package com.jjangdol.biorhythm.ui.checklist
 
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.core.os.bundleOf
@@ -17,14 +16,12 @@ import com.google.firebase.ktx.Firebase
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.data.UserRepository
 import com.jjangdol.biorhythm.databinding.FragmentChecklistBinding
-import com.jjangdol.biorhythm.model.ChecklistResult
 import com.jjangdol.biorhythm.model.SafetyCheckSession
 import com.jjangdol.biorhythm.util.ScoreCalculator
 import com.jjangdol.biorhythm.vm.ChecklistViewModel
 import com.jjangdol.biorhythm.vm.SafetyCheckViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
@@ -49,17 +46,13 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentChecklistBinding.bind(view)
 
-        // 1) 새 세션 시작
         sessionId = UUID.randomUUID().toString()
         initializeSafetyCheckSession()
 
-        // 2) UI 초기화
         setupRecyclerView()
-        loadUserData()
         setupSubmitButton()
         observeViewModel()
 
-        // 3) 이미지 애니메이션
         binding.ivChecklist.apply {
             alpha = 0f
             scaleX = 0.6f
@@ -93,43 +86,24 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
         val userName = prefs.getString("user_name", "") ?: ""
         val empNum = prefs.getString("emp_num", "") ?: ""
 
-        if (userName.isEmpty() || empNum.isEmpty()) {
-            Log.d("ChecklistFragment", "SharedPreferences에 사용자 정보가 비어 있음 → name=$userName, empNum=$empNum")
-            return null
-        }
+        if (userName.isEmpty() || empNum.isEmpty()) return null
 
         return try {
             val docRef = Firebase.firestore.collection("employees").document(empNum)
             val doc = docRef.get().await()
-
-            if (!doc.exists()) {
-                Log.d("ChecklistFragment", "Firestore에 해당 사번($empNum) 문서가 존재하지 않음")
-                return null
-            }
+            if (!doc.exists()) return null
 
             val firestoreName = doc.getString("Name")
-            Log.d("ChecklistFragment", "Firestore name=$firestoreName / SharedPref name=$userName")
-
-            return if (firestoreName == userName) {
-                Log.d("ChecklistFragment", "Firestore 이름 일치 → 사용자 인증 성공 (userId=$empNum)")
-                empNum
-            } else {
-                Log.d("ChecklistFragment", "Firestore 이름 불일치 → Firestore=$firestoreName / 입력=$userName")
-                null
-            }
-
+            return if (firestoreName == userName) empNum else null
         } catch (e: Exception) {
-            Log.e("ChecklistFragment", "Firestore 조회 중 예외 발생: ${e.message}")
             e.printStackTrace()
             null
         }
     }
 
-
-
     private fun setupRecyclerView() {
-        val adapter = ChecklistAdapter(emptyList()) { position, isYes ->
-            checklistViewModel.answerChanged(position, isYes)
+        val adapter = ChecklistAdapter(emptyList()) { position, selectedOption ->
+            checklistViewModel.answerChanged(position, selectedOption)
         }
 
         binding.rvChecklist.apply {
@@ -142,29 +116,20 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
             checklistViewModel.items.collect { items ->
                 adapter.updateItems(items)
 
-                // 전체/완료 개수 업데이트
                 val total = items.size
-                val completed = items.count { it.answeredYes != null }
+                val completed = items.count { it.selectedOption != null }
                 val rate = if (total > 0) (completed * 100 / total) else 0
 
                 binding.tvTotalCount.text = total.toString()
                 binding.tvCompletedCount.text = completed.toString()
                 binding.tvCompletionRate.text = "$rate%"
 
-                // 진행률 바 업데이트 (max가 total이므로 progress = completed)
                 binding.checklistProgressBar.max = total
                 binding.checklistProgressBar.progress = completed
 
-                // 제출 버튼 활성화 여부
-                binding.btnSubmit.isEnabled = items.all { it.answeredYes != null }
+                binding.btnSubmit.isEnabled = items.all { it.selectedOption != null }
             }
         }
-    }
-
-    private fun loadUserData() {
-        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dobStr = prefs.getString("dob", LocalDate.now().format(dateFormatter))!!
-        val dob = LocalDate.parse(dobStr, dateFormatter)
     }
 
     private fun setupSubmitButton() = with(binding) {
@@ -187,9 +152,7 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
                     binding.btnSubmit.isEnabled = true
                     Toast.makeText(requireContext(), state.message, Toast.LENGTH_SHORT).show()
                 }
-                else -> {
-                    binding.loadingOverlay.visibility = View.GONE
-                }
+                else -> binding.loadingOverlay.visibility = View.GONE
             }
         }
     }
@@ -200,18 +163,15 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
                 binding.loadingOverlay.visibility = View.VISIBLE
                 binding.btnSubmit.isEnabled = false
 
-                // 1) 점수 계산
                 val items = checklistViewModel.items.value
                 val checklistScore = ScoreCalculator.calcChecklistScore(items)
 
-                // 2) 세션 업데이트
                 safetyCheckViewModel.updateChecklistResults(
                     checklistItems = items,
                     checklistScore = checklistScore,
                 )
 
                 navigateToTremorMeasurement()
-
             } catch (e: Exception) {
                 showError("오류가 발생했습니다: ${e.message}")
             }

@@ -14,7 +14,6 @@ import com.google.firebase.ktx.Firebase
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentLoginBinding
 import java.security.MessageDigest
-import java.util.Objects.toString
 
 class LoginFragment : Fragment(R.layout.fragment_login) {
 

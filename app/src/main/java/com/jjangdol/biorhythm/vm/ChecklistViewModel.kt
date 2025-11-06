@@ -1,4 +1,3 @@
-// app/src/main/java/com/jjangdol/biorhythm/vm/ChecklistViewModel.kt
 package com.jjangdol.biorhythm.vm
 
 import androidx.lifecycle.ViewModel
@@ -32,15 +31,17 @@ class ChecklistViewModel @Inject constructor(
                 ?.documents
                 ?.mapNotNull { doc ->
                     val question = doc.getString("question") ?: return@mapNotNull null
-                    val weight   = doc.getLong("weight")?.toInt() ?: return@mapNotNull null
-                    // 1) id로 doc.id 전달, 2) answeredYes 는 기본 null
+                    val weight = doc.getLong("weight")?.toInt() ?: return@mapNotNull null
+                    val options = doc.get("options") as? List<String>
                     ChecklistItem(
                         id = doc.id,
                         question = question,
-                        weight = weight
+                        weight = weight,
+                        options = options
                     )
                 }
                 ?: emptyList()
+
 
             viewModelScope.launch {
                 _items.value = list
@@ -49,13 +50,13 @@ class ChecklistViewModel @Inject constructor(
     }
 
     /**
-     * 사용자가 pos 위치 항목에 Yes/No 선택(yes)을 변경했을 때 호출
+     * 사용자가 답을 변경했을 때 호출
      */
-    fun answerChanged(position: Int, isYes: Boolean) {
+    fun answerChanged(position: Int, selectedOption: Int) {
         val updatedList = items.value.toMutableList()
         val item = updatedList[position]
-        updatedList[position] = item.copy(answeredYes = isYes)
-        _items.value = updatedList  // id 유지됨
+        updatedList[position] = item.copy(selectedOption = selectedOption)
+        _items.value = updatedList
     }
 }
 

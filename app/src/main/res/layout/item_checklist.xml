@@ -22,7 +22,7 @@
         android:paddingBottom="12dp"
         android:layout_gravity="center_horizontal" />
 
-    <!-- 예/아니요 선택 -->
+    <!-- 객관식 질의 선택 사항 -->
     <RadioGroup
         android:id="@+id/radioGroup"
         android:layout_width="match_parent"
@@ -31,23 +31,54 @@
         android:gravity="center">
 
         <RadioButton
-            android:id="@+id/btnYes"
+            android:id="@+id/btnOption1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="예"
+            android:text="1"
             android:textColor="#00796B"
             android:buttonTint="#00796B"
             android:textSize="16sp"
-            android:paddingEnd="16dp" />
+            android:paddingEnd="12dp" />
 
         <RadioButton
-            android:id="@+id/btnNo"
+            android:id="@+id/btnOption2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="아니요"
-            android:textColor="#D32F2F"
-            android:buttonTint="#D32F2F"
+            android:text="2"
+            android:textColor="#00796B"
+            android:buttonTint="#00796B"
+            android:textSize="16sp"
+            android:paddingEnd="12dp" />
+
+        <RadioButton
+            android:id="@+id/btnOption3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3"
+            android:textColor="#00796B"
+            android:buttonTint="#00796B"
+            android:textSize="16sp"
+            android:paddingEnd="12dp" />
+
+        <RadioButton
+            android:id="@+id/btnOption4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="4"
+            android:textColor="#00796B"
+            android:buttonTint="#00796B"
+            android:textSize="16sp"
+            android:paddingEnd="12dp" />
+
+        <RadioButton
+            android:id="@+id/btnOption5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="5"
+            android:textColor="#00796B"
+            android:buttonTint="#00796B"
             android:textSize="16sp" />
+
     </RadioGroup>
 
     <!-- 구분선 -->

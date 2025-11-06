@@ -10,11 +10,20 @@ import kotlin.math.absoluteValue
 object ScoreCalculator {
 
     /**
-     * 체크리스트에서 "예"로 답한 항목들의 weight 합을 점수로 반환
+     * 체크리스트에서 답변 별 weight, 문항별 weight 고려 점수 계산
      */
     fun calcChecklistScore(items: List<ChecklistItem>): Int {
+        if (items.isEmpty()) return 0
+
         return items.sumOf { item ->
-            if (item.answeredYes == true) item.weight else 0
+            val questionWeight = item.weight
+            val selected = item.selectedOption ?: return@sumOf 0
+            val optionWeights = item.optionWeights ?: listOf(0, 25, 50, 75, 100) // 기본 5단계 비율
+
+            // 선택지 번호는 1부터 시작하므로 index 보정
+            val selectedWeight = optionWeights.getOrNull(selected - 1) ?: 0
+
+            (questionWeight * (selectedWeight / 100.0)).toInt()
         }
     }
 
