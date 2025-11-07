@@ -52,13 +52,29 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                     val res = result.data as Map<*, *>
                     if (res["status"] == "success") {
                         val userName = res["name"] as? String ?: name
+                        val departments = res["departments"]  // "미등록" 또는 List<String>
+
 
                         // 로그인 성공 시 이름을 SharedPreferences에 저장
                         val prefs = requireContext().getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
-                        prefs.edit()
+                        val editor = prefs.edit()
                             .putString("user_name", userName)
                             .putString("emp_num", empNum)
-                            .apply()
+
+                        // 부서 정보 저장 처리
+                        when (departments) {
+                            is List<*> -> {
+                                // 배열 형태면 JSON 문자열로 변환해서 저장
+                                val deptString = departments.joinToString(",")
+                                editor.putString("dept", deptString)
+                            }
+                            is String -> {
+                                // "미등록" 등 문자열 형태 그대로 저장
+                                editor.putString("dept", departments)
+                            }
+                        }
+
+                        editor.apply()
 
                         // Android ID 가져오기
                         val androidId = Settings.Secure.getString(requireContext().contentResolver, Settings.Secure.ANDROID_ID)

@@ -444,18 +444,17 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         db.collection("employees").document(empNum)
             .get()
             .addOnSuccessListener { doc ->
+                if (!isAdded || _binding == null) return@addOnSuccessListener
                 if (doc.exists() && doc.contains("Password")) {
                     // 관리자 비밀번호 필드가 있는 경우만 버튼 표시
                     binding.tvAdminLink.visibility = View.VISIBLE
-                    Log.d("AdminCheck", "관리자 계정 확인됨 → 버튼 표시")
                 } else {
                     // 일반 직원은 버튼 숨김
                     binding.tvAdminLink.visibility = View.GONE
-                    Log.d("AdminCheck", "일반 계정 → 버튼 숨김")
                 }
             }
             .addOnFailureListener { e ->
-                Log.e("AdminCheck", "Firestore 오류: ${e.message}")
+                if (!isAdded || _binding == null) return@addOnFailureListener
                 binding.tvAdminLink.visibility = View.GONE
             }
     }
