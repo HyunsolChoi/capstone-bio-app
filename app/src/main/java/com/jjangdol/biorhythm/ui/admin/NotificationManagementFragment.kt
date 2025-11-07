@@ -108,11 +108,6 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
             viewModel.setFilter(filterPriority)
         }
 
-        // 초기화 버튼
-        binding.btnClear.setOnClickListener {
-            clearForm()
-        }
-
         // 알림 등록 버튼
         binding.btnCreateNotification.setOnClickListener {
             createNotification()
