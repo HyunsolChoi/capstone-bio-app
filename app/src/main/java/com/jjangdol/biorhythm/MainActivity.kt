@@ -16,8 +16,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 데이터 베이스 업로드 함수
-//        uploadEntriesFromAssets(this)
         setContentView(R.layout.activity_main)
 
         //  NavController 초기화

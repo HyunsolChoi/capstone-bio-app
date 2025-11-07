@@ -2,8 +2,8 @@ package com.jjangdol.biorhythm.ui.main
 
 import android.os.Bundle
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.jjangdol.biorhythm.R
@@ -27,12 +27,10 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         // BottomNavigationView 와 NavController 연결
         binding.bottomNav.setupWithNavController(navController)
 
-        // targetTab 값이 있으면, bottomNav가 완전히 초기화된 뒤 실행
         val targetTab = arguments?.getInt("targetTab")
         if (targetTab != null) {
-            binding.bottomNav.post {
-                navController.navigate(targetTab)              // 내부 NavGraph 직접 이동
-                binding.bottomNav.selectedItemId = targetTab   // UI 선택 상태 갱신
+            viewLifecycleOwner.lifecycleScope.launchWhenResumed {
+                binding.bottomNav.selectedItemId = targetTab
             }
         }
     }

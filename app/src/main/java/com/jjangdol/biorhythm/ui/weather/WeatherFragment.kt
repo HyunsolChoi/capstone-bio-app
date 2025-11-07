@@ -40,6 +40,7 @@ import com.google.firebase.firestore.Source
 import android.text.InputFilter
 import android.text.InputType
 import android.text.method.DigitsKeyListener
+import androidx.lifecycle.Lifecycle
 
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
@@ -76,19 +77,31 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         val coarse = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION)
 
         if (fine != PackageManager.PERMISSION_GRANTED && coarse != PackageManager.PERMISSION_GRANTED) {
-            requestLocationPerms.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            requestLocationPerms.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
             return
         }
 
         fused.lastLocation
             .addOnSuccessListener { loc ->
+                // 먼저 View가 있는지 확인
+                if (_binding == null) {
+                    Log.w("WeatherFragment", "View already destroyed, ignoring location update")
+                    return@addOnSuccessListener
+                }
+
                 if (loc == null) {
                     fetchCurrentLocationFallback()
                     return@addOnSuccessListener
                 }
 
-                // 코루틴을 Main 스레드에서 시작하고, 필요한 부분만 IO 스레드로 전환합니다.
-                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                lifecycleScope.launch(Dispatchers.Main) {
+                    if (_binding == null) {
+                        return@launch
+                    }
+
                     showLoading(true)
 
                     try {
@@ -96,26 +109,37 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                         val name = withContext(Dispatchers.IO) {
                             reverseGeocodeToShortName(loc.latitude, loc.longitude)
                         }
-                        binding.tvLocation.text = name ?: "위치 정보 없음"
 
-                        // 격자 변환 및 날씨 정보 가져와서 UI 업데이트 (suspend 함수 호출)
+                        // binding이 null이 아닐 때만 UI 업데이트
+                        _binding?.let { binding ->
+                            binding.tvLocation.text = name ?: "위치 정보 없음"
+                        }
+
+                        // 격자 변환 및 날씨 정보 가져와서 UI 업데이트
                         val (nx, ny) = convertToGrid(loc.latitude, loc.longitude)
-                        getWeatherAndUpdateUI(nx, ny) // 이 함수가 끝날 때까지 아래 코드는 실행되지 않음
+                        getWeatherAndUpdateUI(nx, ny)
 
                     } catch (e: Exception) {
-                        // 코루틴 내에서 발생할 수 있는 예외 처리
                         Log.e("WeatherDebug", "updateLocationName 내 코루틴 오류", e)
+                        // binding이 있을 때만 Toast 표시
+                        if (_binding != null) {
+                            Toast.makeText(requireContext(), "날씨 정보를 불러올 수 없습니다", Toast.LENGTH_SHORT).show()
+                        }
                     } finally {
-                        // 모든 작업이 끝난 후 로딩 종료
-                        delay(50) // UI 렌더링을 위한 짧은 지연
-                        showLoading(false)
+                        // View가 여전히 활성 상태인지 확인
+                        if (_binding != null) {
+                            delay(50)
+                            showLoading(false)
+                        }
                     }
                 }
             }
             .addOnFailureListener {
-                Toast.makeText(requireContext(), "위치 조회에 실패했습니다.", Toast.LENGTH_SHORT).show()
-                // 위치 조회 실패 시에도 로딩 상태는 해제
-                showLoading(false)
+                // binding이 있을 때만 Toast 표시
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "위치 조회에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    showLoading(false)
+                }
             }
     }
 
@@ -335,12 +359,13 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     }
 
     /** 새로고침 로딩 */
-    private fun showLoading(show: Boolean)
-    {
-        Log.d("WeatherDebug", "showLoading($show)")
-        binding.progress.visibility = if (show) View.VISIBLE else View.GONE
-        binding.btnRefresh.isEnabled = !show
-        if (show) setNowSkeleton(true)
+    private fun showLoading(show: Boolean) {
+        // binding이 null이 아닐 때만 실행
+        _binding?.let { binding ->
+            binding.progress.visibility = if (show) View.VISIBLE else View.GONE
+            binding.btnRefresh.isEnabled = !show
+            if (show) setNowSkeleton(true)
+        }
     }
 
     private fun setNowSkeleton(show: Boolean) {
@@ -444,13 +469,12 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         db.collection("employees").document(empNum)
             .get()
             .addOnSuccessListener { doc ->
-                if (!isAdded || _binding == null) return@addOnSuccessListener
-                if (doc.exists() && doc.contains("Password")) {
-                    // 관리자 비밀번호 필드가 있는 경우만 버튼 표시
-                    binding.tvAdminLink.visibility = View.VISIBLE
-                } else {
-                    // 일반 직원은 버튼 숨김
-                    binding.tvAdminLink.visibility = View.GONE
+                if (!isAdded || view == null || _binding == null) return@addOnSuccessListener
+
+                lifecycleScope.launch {
+                    if (_binding == null) return@launch
+                    binding.tvAdminLink.visibility =
+                        if (doc.exists() && doc.contains("Password")) View.VISIBLE else View.GONE
                 }
             }
             .addOnFailureListener { e ->
