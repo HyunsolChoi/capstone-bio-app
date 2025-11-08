@@ -3,6 +3,7 @@ package com.jjangdol.biorhythm.vm
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -11,6 +12,7 @@ import com.jjangdol.biorhythm.data.UserRepository
 import com.jjangdol.biorhythm.model.*
 import com.jjangdol.biorhythm.util.ScoreCalculator
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
@@ -349,6 +352,8 @@ class SafetyCheckViewModel @Inject constructor(
             throw e
         }
     }
+
+
 
     // 세션 클리어 메서드
     fun clearSession() {

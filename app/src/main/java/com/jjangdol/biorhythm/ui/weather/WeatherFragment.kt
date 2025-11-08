@@ -520,6 +520,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             setupAdminLoginDialog()
         }
 
+        // 종료 버튼
         binding.Endbutton.setOnClickListener {
             saveEndTimeToFirestore()
         }

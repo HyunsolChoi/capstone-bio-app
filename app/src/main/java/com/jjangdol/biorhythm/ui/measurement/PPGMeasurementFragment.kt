@@ -1,6 +1,7 @@
 package com.jjangdol.biorhythm.ui.measurement
 
 import android.Manifest
+import android.content.Context
 import android.graphics.ImageFormat
 import android.hardware.camera2.*
 import android.media.ImageReader
@@ -10,7 +11,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import androidx.navigation.fragment.findNavController
 import android.view.*
+import android.widget.Toast
 import androidx.lifecycle.Lifecycle
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentPpgMeasurementBinding
 import com.jjangdol.biorhythm.model.MeasurementState
@@ -20,6 +24,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import kotlin.math.*
 
 @AndroidEntryPoint
@@ -1078,6 +1085,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                 // 버튼 액션 설정
                 btnNext.setOnClickListener {
                     handleNextAction(result)
+                    saveStartTimeToFirestore()
                 }
             }
         }
@@ -1342,5 +1350,34 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
         closeCamera()
         if (::bgThread.isInitialized) stopBgThread()
         _binding = null
+    }
+
+    // 작업 시작 시간을 Firebase에 업로드. WorkTime/날짜의 필드로 사번 : { StartTime : "시간" } 업로드
+    private fun saveStartTimeToFirestore() {
+        val db = FirebaseFirestore.getInstance()
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null)
+
+        if (empNum.isNullOrEmpty()) return
+
+        // 현재 날짜와 시간 계산
+        val currentDate = LocalDate.now().toString() // 예: "2025-11-08"
+        val currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+
+        // Firestore에 저장할 데이터
+        val data = mapOf(
+            empNum to mapOf("StartTime" to currentTime)
+        )
+
+        // Firestore 업로드 (merge 옵션으로 다른 사번 데이터 보존)
+        db.collection("WorkTime")
+            .document(currentDate)
+            .set(data, SetOptions.merge())
+            .addOnSuccessListener {
+                Toast.makeText(requireContext(), "작업이 정상적으로 시작되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "작업 시작 처리에 실패하였습니다.", Toast.LENGTH_SHORT).show()
+            }
     }
 }
