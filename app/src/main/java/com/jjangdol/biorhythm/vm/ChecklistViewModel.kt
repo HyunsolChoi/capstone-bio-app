@@ -20,7 +20,7 @@ class ChecklistViewModel @Inject constructor(
 
     init {
         val col = firestore
-            .collection("checklist_config")
+            .collection("checklist")
 
         col.addSnapshotListener { snaps, err ->
             if (err != null) {

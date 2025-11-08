@@ -1,5 +1,6 @@
 package com.jjangdol.biorhythm.vm
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
@@ -15,7 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor() : ViewModel() {
 
-    private val firestore = FirebaseFirestore.getInstance()
+    private val db = FirebaseFirestore.getInstance()
     private val _items = MutableStateFlow<List<ChecklistConfig>>(emptyList())
     val items: StateFlow<List<ChecklistConfig>> = _items.asStateFlow()
 
@@ -26,7 +27,7 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private fun loadItems() {
         viewModelScope.launch {
             try {
-                val snapshot = firestore.collection("checklist_config")
+                val snapshot = db.collection("checklist")
                     .orderBy("order")
                     .get()
                     .await()
@@ -42,28 +43,39 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    fun addQuestion(question: String) {
-        addQuestionWithWeight(question, 50) // 기본 가중치 50
-    }
+    fun addQuestion(
+        question: String,
+        weight: Int,
+        options: List<String>,
+        optionWeights: List<Int>
+    ) {
+        val newItem = ChecklistConfig(
+            id = System.currentTimeMillis().toString(),
+            question = question,
+            weight = weight,
+            options = options,
+            optionWeights = optionWeights
+        )
 
-    fun addQuestionWithWeight(question: String, weight: Int) {
+        val updatedList = _items.value.toMutableList().apply {
+            add(newItem)
+        }
+        _items.value = updatedList
+
+        // Firestore 저장
         viewModelScope.launch {
             try {
-                val newItem = ChecklistConfig(
-                    id = "", // Firestore가 자동 생성
-                    question = question,
-                    weight = weight,
-                    order = _items.value.size
-                )
-
-                val docRef = firestore.collection("checklist_config")
-                    .add(newItem)
-                    .await()
-
-                // 로컬 상태 업데이트 (ID 포함)
-                _items.value = _items.value + newItem.copy(id = docRef.id)
+                db.collection("checklist")
+                    .document(newItem.id)
+                    .set(newItem)
+                    .addOnSuccessListener {
+                        Log.d("Firestore", "문항 저장 성공: ${newItem.id}")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("Firestore", "문항 저장 실패", e)
+                    }
             } catch (e: Exception) {
-                // 에러 처리
+                Log.e("Firestore", "문항 저장 중 예외", e)
             }
         }
     }
@@ -110,7 +122,7 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
                     val itemToRemove = items[position]
                     items.removeAt(position)
 
-                    // 순서 재정렬
+                    // 순서 재정렬addQuestion
                     items.forEachIndexed { index, item ->
                         items[index] = item.copy(order = index)
                     }
@@ -132,7 +144,7 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private suspend fun updateItemInFirestore(item: ChecklistConfig) {
         try {
             if (item.id.isNotEmpty()) {
-                firestore.collection("checklist_config")
+                db.collection("checklist")
                     .document(item.id)
                     .set(item)
                     .await()
@@ -145,7 +157,7 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private suspend fun deleteItemFromFirestore(item: ChecklistConfig) {
         try {
             if (item.id.isNotEmpty()) {
-                firestore.collection("checklist_config")
+                db.collection("checklist")
                     .document(item.id)
                     .delete()
                     .await()
@@ -163,10 +175,5 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         } catch (e: Exception) {
             // 에러 처리
         }
-    }
-
-    fun save() {
-        // 이미 실시간으로 저장되므로 추가 작업 필요 없음
-        // UI 피드백용으로만 유지
     }
 }

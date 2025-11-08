@@ -14,14 +14,13 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- 상단 영역: 번호, 문항 내용, 수정/삭제 버튼 -->
+        <!-- 상단 영역 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
-            <!-- 문항 번호 -->
             <TextView
                 android:id="@+id/tvQuestionNumber"
                 android:layout_width="32dp"
@@ -34,7 +33,6 @@
                 android:textStyle="bold"
                 android:layout_marginEnd="12dp" />
 
-            <!-- 문항 내용 (수정 가능) -->
             <EditText
                 android:id="@+id/etQuestion"
                 android:layout_width="0dp"
@@ -49,30 +47,27 @@
                 android:maxLines="3"
                 android:padding="8dp" />
 
-            <!-- 수정 버튼 -->
             <ImageButton
                 android:id="@+id/btnEdit"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_edit"
-                android:tint="@color/primary_color"
                 android:padding="8dp"
-                android:layout_marginEnd="4dp" />
+                android:layout_marginEnd="4dp"
+                app:tint="@color/primary_color" />
 
-            <!-- 삭제 버튼 -->
             <ImageButton
                 android:id="@+id/btnDelete"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_delete"
-                android:tint="@color/error_color"
-                android:padding="8dp" />
-
+                android:padding="8dp"
+                app:tint="@color/error_color" />
         </LinearLayout>
 
-        <!-- 가중치 조정 영역 -->
+        <!-- 문항 가중치 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -88,29 +83,61 @@
                 android:textColor="@color/text_secondary"
                 android:layout_marginEnd="8dp" />
 
-            <SeekBar
-                android:id="@+id/sbWeight"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:max="100"
-                android:progress="50" />
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <TextView
-                android:id="@+id/tvWeightValue"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="50"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/primary_color"
-                android:layout_marginStart="8dp"
-                android:minWidth="30dp"
-                android:gravity="center" />
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etWeight"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="0" />
+            </com.google.android.material.textfield.TextInputLayout>
 
         </LinearLayout>
 
-        <!-- 수정 완료/취소 버튼 (수정 모드에서만 표시) -->
+        <!-- 🔹 선택지 목록 영역 (새로 추가됨) -->
+        <LinearLayout
+            android:id="@+id/layoutOptionsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="12dp" />
+
+        <!-- 🔹 선택지 추가/삭제 버튼 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:layout_marginTop="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddOption"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="선택지 추가"
+                android:textSize="13sp"
+                app:icon="@drawable/ic_add"
+                app:iconSize="16dp"
+                app:cornerRadius="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRemoveOption"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="삭제"
+                android:textSize="13sp"
+                android:layout_marginStart="8dp"
+                app:icon="@drawable/ic_remove"
+                app:iconSize="16dp"
+                app:cornerRadius="8dp" />
+        </LinearLayout>
+
+        <!-- 수정모드 버튼 -->
         <LinearLayout
             android:id="@+id/editButtonsLayout"
             android:layout_width="match_parent"
@@ -139,9 +166,7 @@
                 android:textSize="14sp"
                 app:backgroundTint="@color/success_color"
                 app:cornerRadius="8dp" />
-
         </LinearLayout>
 
     </LinearLayout>
-
 </com.google.android.material.card.MaterialCardView>

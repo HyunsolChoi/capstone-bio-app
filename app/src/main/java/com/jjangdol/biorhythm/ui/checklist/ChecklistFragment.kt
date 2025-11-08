@@ -40,7 +40,6 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
     @Inject
     lateinit var userRepository: UserRepository
 
-    private val dateFormatter = DateTimeFormatter.ISO_DATE
     private lateinit var sessionId: String
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
