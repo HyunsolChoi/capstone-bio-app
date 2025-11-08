@@ -300,7 +300,7 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                 "1" -> listOf("1", DEPT_ALL)
                 else -> emptyList()
             }
-            ddAuth.setAdapter(ArrayAdapter(ctx, android.R.layout.simple_list_item_1, authItems))
+            ddAuth.setAdapter(ArrayAdapter<String>(ctx, android.R.layout.simple_list_item_1, authItems))
             ddAuth.setOnClickListener {
                 if (authItems.isEmpty())
                 {
@@ -341,18 +341,17 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                 hideDept3.visibility = View.GONE
                 hideDept4.visibility = View.GONE
 
-                if (selected == "DEPT_ALL") {
+                if (selected == DEPT_ALL) {
                     selectDept.clear()
-                    selectDept.add("DEPT_ALL")
+                    selectDept.add(DEPT_ALL)
                 } else {
                     selectedDeptPath.add(selected)
-                    loadNextLevel(db, selectedDeptPath, 2, hideDept2, targetDept2, hideDept3, targetDept3, hideDept4, targetDept4)
+                    loadNextLevel(db, selectedDeptPath, hideDept2, targetDept2, hideDept3, targetDept3, hideDept4, targetDept4)
                 }
             }
 
             targetDept2.setOnItemClickListener { _, _, position, _ ->
-                val adapter = targetDept2.adapter
-                val selected = adapter.getItem(position) as String
+                val selected = (targetDept2.adapter.getItem(position) as? String) ?: return@setOnItemClickListener
 
                 while (selectedDeptPath.size > 1) selectedDeptPath.removeAt(selectedDeptPath.size - 1)
                 targetDept3.setText("", false)
@@ -365,13 +364,12 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                     selectDept.add(selectedDeptPath.last())
                 } else {
                     selectedDeptPath.add(selected)
-                    loadNextLevel(db, selectedDeptPath, 3, hideDept3, targetDept3, hideDept4, targetDept4)
+                    loadNextLevel(db, selectedDeptPath, hideDept3, targetDept3, hideDept4, targetDept4)
                 }
             }
 
             targetDept3.setOnItemClickListener { _, _, position, _ ->
-                val adapter = targetDept3.adapter
-                val selected = adapter.getItem(position) as String
+                val selected = (targetDept3.adapter.getItem(position) as? String) ?: return@setOnItemClickListener
 
                 // 4단계 초기화
                 while (selectedDeptPath.size > 2) selectedDeptPath.removeAt(selectedDeptPath.size - 1)
@@ -383,13 +381,12 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                     selectDept.add(selectedDeptPath.last())
                 } else {
                     selectedDeptPath.add(selected)
-                    loadNextLevel(db, selectedDeptPath, 4, hideDept4, targetDept4)
+                    loadNextLevel(db, selectedDeptPath, hideDept4, targetDept4)
                 }
             }
 
             targetDept4.setOnItemClickListener { _, _, position, _ ->
-                val adapter = targetDept4.adapter
-                val selected = adapter.getItem(position) as String
+                val selected = (targetDept4.adapter.getItem(position) as? String) ?: return@setOnItemClickListener
 
                 while (selectedDeptPath.size > 3) selectedDeptPath.removeAt(selectedDeptPath.size - 1)
 
@@ -474,38 +471,23 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
 
     //하위부서 가져오기
     private suspend fun loadSubDepartments(db: FirebaseFirestore, parentPath: List<String>): List<String> {
-        return try {
-            val subCollectionNames = listOf(
-                "Level1",
-                "Level2",
-                "Level3",
-            )
+        if (parentPath.isEmpty()) return emptyList()
 
-            var docRef = db.collection("Department").document(parentPath[0])
+        val subCollectionNames = listOf("Level1","Level2","Level3")
+        var docRef = db.collection("Department").document(parentPath[0])
 
-            for (i in 1 until parentPath.size) {
-                val subCollName = subCollectionNames.getOrElse(i - 1) { "Department" }
-                docRef = docRef.collection(subCollName).document(parentPath[i])
-            }
-
-            val nextSubCollName = subCollectionNames.getOrElse(parentPath.size - 1) { "Department" }
-            val subCollectionRef = docRef.collection(nextSubCollName)
-
-            val snapshot = subCollectionRef.get().await()
-
-            val subDepts = snapshot.documents.map { doc ->
-                doc.getString("name")
-                    ?: doc.getString("korName")
-                    ?: doc.getString("title")
-                    ?: doc.id
-            }.filter { it.isNotBlank() }
-                .distinct()
-                .sorted()
-            subDepts
-
-        } catch (e: Exception) {
-            emptyList()
+        for (i in 1 until parentPath.size) {
+            val subCollName = subCollectionNames.getOrElse(i - 1) { "Department" }
+            docRef = docRef.collection(subCollName).document(parentPath[i])
         }
+
+        val nextSubCollName = subCollectionNames.getOrElse(parentPath.size - 1) { "Department" }
+        val snapshot = docRef.collection(nextSubCollName).get().await()
+
+        return snapshot.documents.mapNotNull { it.getString("name") ?: it.getString("korName") ?: it.getString("title") ?: it.id }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
     }
 
     //최상위부서 가져오기
