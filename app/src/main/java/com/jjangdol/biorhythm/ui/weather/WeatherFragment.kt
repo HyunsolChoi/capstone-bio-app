@@ -3,6 +3,7 @@ package com.jjangdol.biorhythm.ui.weather
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Address
@@ -516,6 +517,17 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
         // 관리자 버튼
         binding.tvAdminLink.setOnClickListener {
+            setupAdminLoginDialog()
+        }
+
+        binding.Endbutton.setOnClickListener {
+            saveEndTimeToFirestore()
+        }
+    }
+
+    // 관리자 로그인 Dialog set
+    private fun setupAdminLoginDialog() {
+        binding.tvAdminLink.setOnClickListener {
             val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
             val empNum = prefs.getString("emp_num", null) ?: return@setOnClickListener  // 현재 로그인한 사번 불러오기
 
@@ -534,77 +546,85 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
             val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("관리자 비밀번호 입력")
-                .setView(container)  // 감싼 컨테이너 전달
+                .setView(container)
                 .setPositiveButton("확인", null)
                 .setNegativeButton("취소", null)
                 .create()
 
-            dialog.setOnShowListener{
+            dialog.setOnShowListener {
                 val okBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                 okBtn.setOnClickListener {
                     val password = input.text.toString().trim()
-                    if (password.isEmpty())
-                    {
+                    if (password.isEmpty()) {
                         Toast.makeText(requireContext(), "비밀번호를 입력하세요.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
 
-                    val db = FirebaseFirestore.getInstance()
-                    db.collection("employees")
-                        .document(empNum)
-                        .get(Source.SERVER)
-                        .addOnSuccessListener { doc ->
-                            if (!doc.exists()) {
-                                Toast.makeText(requireContext(), "관리자 계정이 존재하지 않습니다", Toast.LENGTH_SHORT).show()
-                                return@addOnSuccessListener
-                            }
-
-                            val savedPwStr = doc.getString("Password")
-
-                            if (savedPwStr == password) {
-                                Toast.makeText(requireContext(), "관리자 로그인 성공", Toast.LENGTH_SHORT).show()
-                                dialog.dismiss()
-                                val mainNavController = requireActivity().findNavController(R.id.navHostFragment)
-                                mainNavController.navigate(R.id.action_main_to_newAdmin)
-                            } else { Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다", Toast.LENGTH_SHORT).show() }
-                        }
-                        .addOnFailureListener { e ->
-                            Toast.makeText(requireContext(), "Firestore 오류: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
+                    verifyAdminLogin(empNum, password, dialog)
                 }
             }
+
             dialog.show()
         }
-
-        // 작업 종료시간을 Firebase에 업로드. WorkTime/날짜의 필드로 사번 : { EndTime : "시간" } 업로드
-        binding.Endbutton.setOnClickListener {
-            val db = FirebaseFirestore.getInstance()
-            val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-            val empNum = prefs.getString("emp_num", null)
-
-            if (empNum.isNullOrEmpty()) {
-                return@setOnClickListener
-            }
-
-            // 현재 날짜와 시간 계산
-            val currentDate = LocalDate.now().toString() // 예: "2025-11-08"
-            val currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-
-            // Firestore에 저장할 데이터
-            val data = mapOf(
-                empNum to mapOf("EndTime" to currentTime)
-            )
-
-            // Firestore 업로드 (merge 옵션으로 다른 사번 데이터 보존)
-            db.collection("WorkTime")
-                .document(currentDate)
-                .set(data, SetOptions.merge())
-                .addOnSuccessListener {
-                    Toast.makeText(requireContext(), "작업이 정상적으로 종료되었습니다.", Toast.LENGTH_SHORT).show()
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(requireContext(), "작업 종료 처리에 실패하였습니다.", Toast.LENGTH_SHORT).show()
-                }
-        }
     }
+
+
+    // 관리자 로그인
+    private fun verifyAdminLogin(empNum: String, password: String, dialog: Dialog) {
+        val db = FirebaseFirestore.getInstance()
+        db.collection("employees")
+            .document(empNum)
+            .get(Source.SERVER)
+            .addOnSuccessListener { doc ->
+                if (!doc.exists()) {
+                    Toast.makeText(requireContext(), "관리자 계정이 존재하지 않습니다", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+
+                val savedPwStr = doc.getString("Password")
+
+                if (savedPwStr == password) {
+                    Toast.makeText(requireContext(), "관리자 로그인 성공", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                    val mainNavController = requireActivity().findNavController(R.id.navHostFragment)
+                    mainNavController.navigate(R.id.action_main_to_newAdmin)
+                } else {
+                    Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "Firestore 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+
+    // 작업 종료시간을 Firebase에 업로드. WorkTime/날짜의 필드로 사번 : { EndTime : "시간" } 업로드
+    private fun saveEndTimeToFirestore() {
+        val db = FirebaseFirestore.getInstance()
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null)
+
+        if (empNum.isNullOrEmpty()) return
+
+        // 현재 날짜와 시간 계산
+        val currentDate = LocalDate.now().toString() // 예: "2025-11-08"
+        val currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+
+        // Firestore에 저장할 데이터
+        val data = mapOf(
+            empNum to mapOf("EndTime" to currentTime)
+        )
+
+        // Firestore 업로드 (merge 옵션으로 다른 사번 데이터 보존)
+        db.collection("WorkTime")
+            .document(currentDate)
+            .set(data, SetOptions.merge())
+            .addOnSuccessListener {
+                Toast.makeText(requireContext(), "작업이 정상적으로 종료되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "작업 종료 처리에 실패하였습니다.", Toast.LENGTH_SHORT).show()
+            }
+    }
+
 }

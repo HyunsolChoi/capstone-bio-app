@@ -37,12 +37,6 @@ class ResultsAdapter : ListAdapter<ChecklistResult, ResultsAdapter.VH>(DIFF_CALL
         }
     }
 
-    fun setData(data: List<ChecklistResult>) {
-        fullList.clear()
-        fullList.addAll(data)
-        submitList(fullList.toList())
-    }
-
     fun filter(query: String) {
         val filtered = if (query.isBlank()) {
             fullList
