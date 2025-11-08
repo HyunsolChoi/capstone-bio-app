@@ -4,7 +4,6 @@ package com.jjangdol.biorhythm.vm
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jjangdol.biorhythm.data.model.Notification
 import com.jjangdol.biorhythm.data.model.NotificationPriority
 import com.jjangdol.biorhythm.data.repository.NotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,19 +12,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.content.Context
 import android.content.ContentResolver
-import android.database.Cursor
 import android.provider.OpenableColumns
 import android.util.Log
-import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.StorageMetadata
-import com.google.firebase.storage.ktx.storage
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.net.URLConnection
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -84,12 +79,6 @@ class NotificationManagementViewModel @Inject constructor(
         return (nameFromResolver ?: fallback).ifBlank { "attachment" }
     }
 
-    private fun coerceMime(resolver: ContentResolver, uri: Uri, fileName: String): String {
-        val detected = resolver.getType(uri)
-        if (!detected.isNullOrBlank()) return detected
-        return URLConnection.guessContentTypeFromName(fileName) ?: "application/octet-stream"
-    }
-
     private fun buildStoragePath(fileName: String): String {
         val date = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date())
         return "notifications/$date/${UUID.randomUUID()}_$fileName"
@@ -139,7 +128,9 @@ class NotificationManagementViewModel @Inject constructor(
         title: String,
         content: String,
         priority: NotificationPriority,
-        attachments: List<Uri> = emptyList()
+        attachments: List<Uri> = emptyList(),
+        auth: Int,
+        targetDept: List<String>
     ) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
@@ -152,7 +143,9 @@ class NotificationManagementViewModel @Inject constructor(
                     title = title,
                     content = content,
                     priority = priority,
-                    attachmentUrl = urls
+                    attachmentUrl = urls,
+                    auth = auth,
+                    targetDept = targetDept
                 ).onSuccess {
                     _uiState.value = UiState.Success("알림이 성공적으로 등록되었습니다")
                 }.onFailure { e ->

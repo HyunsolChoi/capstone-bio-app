@@ -21,6 +21,14 @@ import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.LinearLayout
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+import android.widget.ArrayAdapter
+import com.google.android.material.textfield.TextInputLayout
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
+import android.util.Log
+import android.content.Context
 
 @AndroidEntryPoint
 class NotificationManagementFragment : Fragment(R.layout.fragment_notification_management) {
@@ -35,6 +43,8 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
     private var filterPriority: NotificationPriority? = null
 
     private val selectedAttachmentUris = mutableListOf<Uri>()
+    private companion object { const val DEPT_ALL = "전체" }
+    private val selectedDeptPathGlobal: MutableList<String> = mutableListOf()
 
     private val openDocuments = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments())
     { uris ->
@@ -43,20 +53,42 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         }
     }
 
+    private var selectAuth: MutableSet<String> = mutableSetOf()
+    private var selectDept: MutableSet<String> = mutableSetOf()
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        FirebaseFirestore.setLoggingEnabled(true)
         _binding = FragmentNotificationManagementBinding.bind(view)
 
         setupUI()
         setupRecyclerView()
         setupClickListeners()
         observeViewModel()
+
+        val db = FirebaseFirestore.getInstance()
+        val collectionRef = db.collection("Department")
+
+        collectionRef.get()
+            .addOnSuccessListener { querySnapshot ->
+                val documentIds = querySnapshot.documents.map { it.id }
+                Log.d("Firestore", "Department 문서 ID 목록: $documentIds")
+                Log.d("Firestore", "문서 개수: ${querySnapshot.size()}")
+            }
+            .addOnFailureListener { e ->
+                Log.e("Firestore", "Department 문서 조회 실패", e)
+            }
     }
 
     private fun setupUI() {
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
         }
+    }
+
+    private fun getEmployeeIdFromPrefs(): String? {
+        val sp = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        return sp.getString("emp_num", null)
     }
 
     private fun setupRecyclerView() {
@@ -113,6 +145,9 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
             createNotification()
         }
 
+        // 수신자 그룹 버튼
+        binding.btnReceiver.setOnClickListener { openReceiverDropdownDialog() }
+
         // 새로고침 버튼
         binding.btnRefreshNotifications.setOnClickListener {
             viewModel.refreshNotifications()
@@ -163,6 +198,8 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         val title = binding.etNotificationTitle.text?.toString()?.trim() ?: ""
         val content = binding.etNotificationContent.text?.toString()?.trim() ?: ""
 
+        val auth: Int = (selectAuth.firstOrNull()?.toIntOrNull() ?: 2)
+
         when {
             title.isEmpty() -> {
                 binding.etNotificationTitle.error = "제목을 입력하세요"
@@ -173,9 +210,328 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                 binding.etNotificationContent.requestFocus()
             }
             else -> {
-                viewModel.createNotification(title, content, selectedPriority, attachments = selectedAttachmentUris.toList())
+                val deptTargets =
+                    if (selectDept.contains(DEPT_ALL)) listOf(DEPT_ALL)
+                    else buildDeptTargetsFromPath(selectedDeptPathGlobal)
+
+                viewModel.createNotification(title, content, selectedPriority, attachments = selectedAttachmentUris.toList(), auth, targetDept = deptTargets)
             }
         }
+    }
+
+    //dept 묶어서 가져옴
+    private fun buildDeptTargetsFromPath(parts: List<String>): List<String> {
+        return parts.indices.map { i -> parts.take(i + 1).joinToString("/") }
+    }
+
+    //수신자 그룹 선택
+    private fun openReceiverDropdownDialog() {
+        val ctx = requireContext()
+        val db = FirebaseFirestore.getInstance()
+
+        val root = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)
+        }
+
+        fun makeDropdown(label: String, hintText: String): Pair<TextInputLayout, MaterialAutoCompleteTextView> {
+            val til = TextInputLayout(ctx, null, com.google.android.material.R.style.Widget_Material3_TextInputLayout_OutlinedBox_ExposedDropdownMenu).apply {
+                boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+                setPadding(0, 16, 0, 0)
+                this.hint = label
+            }
+            val actv = MaterialAutoCompleteTextView(til.context).apply {
+                isFocusable = false
+                isCursorVisible = false
+                keyListener = null
+                setText("", false)
+                this.hint = hintText
+            }
+            til.addView(actv)
+            root.addView(til)
+            return til to actv
+        }
+
+        // 드롭다운
+        val (_, ddAuth) = makeDropdown("수신자 권한", "")
+        val (_, targetDept1) = makeDropdown("수신자 부서", "")
+        val (hideDept2, targetDept2) = makeDropdown("2단계 부서", "")
+        val (hideDept3, targetDept3) = makeDropdown("3단계 부서", "")
+        val (hideDept4, targetDept4) = makeDropdown("4단계 부서", "")
+        hideDept2.visibility = View.GONE
+        hideDept3.visibility = View.GONE
+        hideDept4.visibility = View.GONE
+
+        val selectedDeptPath = mutableListOf<String>()
+
+        // 현재 선택값 UI 반영
+        fun refreshTexts() {
+            ddAuth.setText(selectAuth.firstOrNull() ?: "", false)
+            targetDept1.setText(selectDept.firstOrNull() ?: "", false)
+        }
+        refreshTexts()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            // 작성자 auth 가져오기
+            val senderAuth = try {
+                val empDocId = getEmployeeIdFromPrefs()
+                if (empDocId.isNullOrBlank()) {
+                    Toast.makeText(ctx, "사번 정보를 찾을 수 없습니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+                    null
+                } else {
+                    val emp = db.collection("employees").document(empDocId).get().await()
+                    val raw = emp.get("auth")
+
+                    when (raw) {
+                        is String -> raw               // "0" | "1"
+                        is Number -> raw.toInt().toString()
+                        is Boolean -> if (raw) "1" else "0"
+                        else -> null
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "프로필 로딩 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+                null
+            }
+
+            // 드롭다운 항목
+            val authItems = when (senderAuth) {
+                "0" -> listOf("0", "1", DEPT_ALL)
+                "1" -> listOf("1", DEPT_ALL)
+                else -> emptyList()
+            }
+            ddAuth.setAdapter(ArrayAdapter(ctx, android.R.layout.simple_list_item_1, authItems))
+            ddAuth.setOnClickListener {
+                if (authItems.isEmpty())
+                {
+                    Toast.makeText(ctx, "발송 권한이 없습니다", Toast.LENGTH_SHORT).show(); return@setOnClickListener
+                }
+                ddAuth.showDropDown()
+            }
+            ddAuth.setOnItemClickListener { _, _, position, _ ->
+                val v = authItems[position]
+                if (senderAuth == "1" && v == "0")
+                {
+                    Toast.makeText(ctx, "관리자(1)는 0에게 보낼 수 없습니다", Toast.LENGTH_SHORT).show()
+                    refreshTexts()
+                    return@setOnItemClickListener
+                }
+                selectAuth.clear()
+                selectAuth.add(v)
+            }
+
+            val topLevelDepts = loadTopLevelDepts(db)
+            val dept1Items = listOf(DEPT_ALL) + topLevelDepts
+            targetDept1.setAdapter(ArrayAdapter(ctx, android.R.layout.simple_list_item_1, dept1Items))
+            targetDept1.setOnClickListener {
+                if (dept1Items.isEmpty()) {
+                    Toast.makeText(ctx, "부서 목록을 불러오는 중", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                targetDept1.showDropDown()
+            }
+            targetDept1.setOnItemClickListener { _, _, position, _ ->
+                val selected = dept1Items[position]
+
+                selectedDeptPath.clear()
+                targetDept2.setText("", false)
+                targetDept3.setText("", false)
+                targetDept4.setText("", false)
+                hideDept2.visibility = View.GONE
+                hideDept3.visibility = View.GONE
+                hideDept4.visibility = View.GONE
+
+                if (selected == "DEPT_ALL") {
+                    selectDept.clear()
+                    selectDept.add("DEPT_ALL")
+                } else {
+                    selectedDeptPath.add(selected)
+                    loadNextLevel(db, selectedDeptPath, 2, hideDept2, targetDept2, hideDept3, targetDept3, hideDept4, targetDept4)
+                }
+            }
+
+            targetDept2.setOnItemClickListener { _, _, position, _ ->
+                val adapter = targetDept2.adapter
+                val selected = adapter.getItem(position) as String
+
+                while (selectedDeptPath.size > 1) selectedDeptPath.removeAt(selectedDeptPath.size - 1)
+                targetDept3.setText("", false)
+                targetDept4.setText("", false)
+                hideDept3.visibility = View.GONE
+                hideDept4.visibility = View.GONE
+
+                if (selected.startsWith("전체")) {
+                    selectDept.clear()
+                    selectDept.add(selectedDeptPath.last())
+                } else {
+                    selectedDeptPath.add(selected)
+                    loadNextLevel(db, selectedDeptPath, 3, hideDept3, targetDept3, hideDept4, targetDept4)
+                }
+            }
+
+            targetDept3.setOnItemClickListener { _, _, position, _ ->
+                val adapter = targetDept3.adapter
+                val selected = adapter.getItem(position) as String
+
+                // 4단계 초기화
+                while (selectedDeptPath.size > 2) selectedDeptPath.removeAt(selectedDeptPath.size - 1)
+                targetDept4.setText("", false)
+                hideDept4.visibility = View.GONE
+
+                if (selected.startsWith("전체")) {
+                    selectDept.clear()
+                    selectDept.add(selectedDeptPath.last())
+                } else {
+                    selectedDeptPath.add(selected)
+                    loadNextLevel(db, selectedDeptPath, 4, hideDept4, targetDept4)
+                }
+            }
+
+            targetDept4.setOnItemClickListener { _, _, position, _ ->
+                val adapter = targetDept4.adapter
+                val selected = adapter.getItem(position) as String
+
+                while (selectedDeptPath.size > 3) selectedDeptPath.removeAt(selectedDeptPath.size - 1)
+
+                if (selected.startsWith("전체")) {
+                    selectDept.clear()
+                    selectDept.add(selectedDeptPath.last())
+                } else {
+                    selectedDeptPath.add(selected)
+                    selectDept.clear()
+                    selectDept.add(selected)
+                }
+            }
+
+            // 다이얼로그 표시
+            AlertDialog.Builder(ctx)
+                .setTitle("수신자 그룹 선택")
+                .setView(root)
+                .setNegativeButton("닫기", null)
+                .setPositiveButton("확인") { d, _ ->
+                    if (senderAuth == null) {
+                        Toast.makeText(ctx, "발송 권한이 없습니다", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    if (selectAuth.isEmpty()) {
+                        Toast.makeText(ctx, "수신자 권한(auth)을 선택하세요", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    if (selectDept.isEmpty()) {
+                        Toast.makeText(ctx, "수신자 부서(dept)를 선택하세요", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    if (senderAuth == "1" && selectAuth.contains("0")) {
+                        Toast.makeText(ctx, "관리자(1)는 0에게 보낼 수 없습니다", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    selectedDeptPathGlobal.clear()
+                    if (!selectDept.contains(DEPT_ALL)) {
+                        selectedDeptPathGlobal.addAll(selectedDeptPath)
+                    }
+                    d.dismiss()
+                }
+                .show()
+        }
+    }
+
+    //하위부서 표시
+    private fun loadNextLevel(
+        db: FirebaseFirestore,
+        currentPath: List<String>,
+        vararg dropdownPairs: Any
+    ) {
+        val tilNext = dropdownPairs[0] as TextInputLayout
+        val ddNext = dropdownPairs[1] as MaterialAutoCompleteTextView
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val parentDeptId = currentPath.last()
+                val subDepts = loadSubDepartments(db, currentPath)
+
+                if (subDepts.isEmpty()) {
+                    // 하위 부서가 없으면 현재 선택으로 확정
+                    tilNext.visibility = View.GONE
+                    selectDept.clear()
+                    selectDept.add(parentDeptId)
+                    Toast.makeText(requireContext(), "$parentDeptId 선택됨 (하위 부서 없음)", Toast.LENGTH_SHORT).show()
+                } else {
+                    // 하위 부서가 있으면 드롭다운 표시
+                    tilNext.visibility = View.VISIBLE
+                    val items = listOf("전체 ($parentDeptId 포함)") + subDepts
+
+                    ddNext.setAdapter(ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, items))
+                    ddNext.setOnClickListener {
+                        ddNext.showDropDown()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "하위 부서 로딩 실패", Toast.LENGTH_SHORT).show()
+                tilNext.visibility = View.GONE
+            }
+        }
+    }
+
+    //하위부서 가져오기
+    private suspend fun loadSubDepartments(db: FirebaseFirestore, parentPath: List<String>): List<String> {
+        return try {
+            val subCollectionNames = listOf(
+                "Level1",
+                "Level2",
+                "Level3",
+            )
+
+            var docRef = db.collection("Department").document(parentPath[0])
+
+            for (i in 1 until parentPath.size) {
+                val subCollName = subCollectionNames.getOrElse(i - 1) { "Department" }
+                docRef = docRef.collection(subCollName).document(parentPath[i])
+            }
+
+            val nextSubCollName = subCollectionNames.getOrElse(parentPath.size - 1) { "Department" }
+            val subCollectionRef = docRef.collection(nextSubCollName)
+
+            val snapshot = subCollectionRef.get().await()
+
+            val subDepts = snapshot.documents.map { doc ->
+                doc.getString("name")
+                    ?: doc.getString("korName")
+                    ?: doc.getString("title")
+                    ?: doc.id
+            }.filter { it.isNotBlank() }
+                .distinct()
+                .sorted()
+            subDepts
+
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    //최상위부서 가져오기
+    private suspend fun loadTopLevelDepts(db: FirebaseFirestore): List<String> {
+        try {
+            val snap = db.collection("Department").get().await()
+
+            if (!snap.isEmpty) {
+                val deptList = snap.documents.map { doc ->
+                    val name = doc.getString("name")
+                        ?: doc.getString("korName")
+                        ?: doc.getString("title")
+                        ?: doc.id
+
+                    name
+                }.filter { it.isNotBlank() }
+                    .distinct()
+                    .sorted()
+
+                return deptList
+            }
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "부서 목록을 불러오지 못했습니다.", Toast.LENGTH_LONG).show()
+        }
+
+        return emptyList()
     }
 
     private fun addAttachments(newUris: List<Uri>) {
@@ -195,19 +551,6 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
             else "${selectedAttachmentUris.size}개의 파일이 첨부되었습니다."
     }
 
-    private fun openAttachmentUrl(url: String) {
-        try
-        {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-
-            startActivity(Intent.createChooser(intent, "첨부파일 열기"))
-        }
-        catch (e: Exception)
-        {
-            Toast.makeText(requireContext(), "파일을 열 수 없습니다: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun clearForm() {
         binding.etNotificationTitle.text?.clear()
         binding.etNotificationContent.text?.clear()
@@ -217,12 +560,6 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
     }
 
     private fun showNotificationDetailDialog(notification: Notification) {
-        val priorityColor = when (notification.priority) {
-            NotificationPriority.HIGH -> "#F44336"
-            NotificationPriority.NORMAL -> "#2196F3"
-            NotificationPriority.LOW -> "#4CAF50"
-        }
-
         AlertDialog.Builder(requireContext())
             .setTitle("${notification.priority.displayName} 알림")
             .setMessage(

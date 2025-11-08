@@ -4,7 +4,6 @@ package com.jjangdol.biorhythm.data.model
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
-import java.util.Date
 
 data class Notification(
     @DocumentId
@@ -13,6 +12,8 @@ data class Notification(
     val content: String = "",
     val priority: NotificationPriority = NotificationPriority.NORMAL,
     val active: Boolean = true,  // isActive -> active 변경
+    val auth: Int = 2,
+    val targetDept: List<String> = emptyList(),
     @ServerTimestamp
     val createdAt: Timestamp? = null,
     @ServerTimestamp

@@ -2,7 +2,6 @@
 package com.jjangdol.biorhythm.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.jjangdol.biorhythm.data.model.Notification
@@ -51,46 +50,15 @@ class NotificationRepository @Inject constructor() {
     }
 
     /**
-     * 우선순위별 알림 조회 (필드명 수정: active)
-     */
-    fun getNotificationsByPriority(priority: NotificationPriority): Flow<List<Notification>> = callbackFlow {
-        val listener = notificationsCollection
-            .whereEqualTo("active", true)  // isActive -> active 변경
-            .whereEqualTo("priority", priority.name)
-            // .orderBy("createdAt", Query.Direction.DESCENDING) // 인덱스 에러 방지를 위해 주석
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-
-                val notifications = snapshot?.documents?.mapNotNull { doc ->
-                    try {
-                        doc.toObject(Notification::class.java)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } ?: emptyList()
-
-                // 클라이언트 사이드에서 정렬
-                val sortedNotifications = notifications.sortedByDescending {
-                    it.createdAt?.toDate()?.time ?: 0
-                }
-
-                trySend(sortedNotifications)
-            }
-
-        awaitClose { listener.remove() }
-    }
-
-    /**
      * 새 알림 생성 (필드명 수정: active)
      */
     suspend fun createNotification(
         title: String,
         content: String,
         priority: NotificationPriority = NotificationPriority.NORMAL,
-        attachmentUrl: List<String> = emptyList()
+        attachmentUrl: List<String> = emptyList(),
+        auth: Int,
+        targetDept: List<String>
     ): Result<String> {
         return try {
             val notification = Notification(
@@ -99,7 +67,9 @@ class NotificationRepository @Inject constructor() {
                 priority = priority,
                 active = true,  // isActive -> active 변경
                 createdBy = "admin",
-                attachmentUrl = attachmentUrl
+                attachmentUrl = attachmentUrl,
+                auth = auth,
+                targetDept = targetDept
             )
 
             val documentRef = notificationsCollection.add(notification).await()
@@ -148,19 +118,6 @@ class NotificationRepository @Inject constructor() {
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("NotificationRepo", "알림 삭제 실패: $notificationId, 에러: $e")
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * 특정 알림 조회
-     */
-    suspend fun getNotificationById(notificationId: String): Result<Notification?> {
-        return try {
-            val document = notificationsCollection.document(notificationId).get().await()
-            val notification = document.toObject(Notification::class.java)
-            Result.success(notification)
-        } catch (e: Exception) {
             Result.failure(e)
         }
     }
