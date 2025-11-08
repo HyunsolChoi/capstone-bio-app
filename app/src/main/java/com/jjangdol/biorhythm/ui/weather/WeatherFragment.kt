@@ -40,6 +40,7 @@ import com.google.firebase.firestore.Source
 import android.text.InputFilter
 import android.text.InputType
 import android.text.method.DigitsKeyListener
+import android.widget.FrameLayout
 import androidx.lifecycle.Lifecycle
 
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
@@ -515,14 +516,21 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             val empNum = prefs.getString("emp_num", null) ?: return@setOnClickListener  // 현재 로그인한 사번 불러오기
 
             val input = EditText(requireContext()).apply {
-                hint = "관리자 비밀번호"
+                hint = "비밀번호"
                 inputType = InputType.TYPE_CLASS_NUMBER
                 keyListener = DigitsKeyListener.getInstance("0123456789")
             }
 
+            // 다이얼로그 기본 제목 패딩과 맞추기 위해 컨테이너로 감쌈
+            val container = FrameLayout(requireContext()).apply {
+                val padding = (20 * resources.displayMetrics.density).toInt() // dp → px 변환
+                setPadding(padding, 0, padding, 0)
+                addView(input)
+            }
+
             val dialog = AlertDialog.Builder(requireContext())
                 .setTitle("관리자 비밀번호 입력")
-                .setView(input)
+                .setView(container)  // 감싼 컨테이너 전달
                 .setPositiveButton("확인", null)
                 .setNegativeButton("취소", null)
                 .create()

@@ -10,6 +10,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -53,6 +54,9 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
         setupSubmitButton()
         observeViewModel()
 
+        // 금일 기존 측정 여부 확인
+        checkTodayMeasurement()
+
         binding.ivChecklist.apply {
             alpha = 0f
             scaleX = 0.6f
@@ -81,6 +85,70 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
         }
     }
 
+    // 금일 측정 여부 확인 함수
+    private fun checkTodayMeasurement() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            val empNum = prefs.getString("emp_num", null) ?: return@launch
+
+            val today = java.time.LocalDate.now().toString() // e.g. "2025-11-08"
+
+            try {
+                // Firestore 문서 경로: results/{today}/entries/{empNum}
+                val docRef = Firebase.firestore
+                    .collection("results")
+                    .document(today)
+                    .collection("entries")
+                    .document(empNum)
+
+                val snapshot = docRef.get().await()
+
+                if (snapshot.exists()) {
+                    // 오늘 이미 측정한 데이터 존재
+                    showRecheckDialog()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(requireContext(), "기록 확인 중 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // 글래스 모피즘 오버레이 다이얼로그 보여주는 함수
+    private fun showRecheckDialog() {
+        // 반투명 블러 오버레이 표시
+        binding.glassOverlay.apply {
+            visibility = View.VISIBLE
+            alpha = 0f
+            animate().alpha(1f).setDuration(250L).start()
+        }
+
+        val dialog = android.app.AlertDialog.Builder(requireContext())
+            .setTitle("금일 측정 완료")
+            .setMessage("금일 측정을 이미 마쳤습니다.\n재측정 하시겠습니까?")
+            .setPositiveButton("예") { d, _ ->
+                d.dismiss()
+                binding.glassOverlay.visibility = View.GONE
+                // 재측정 진행
+                Toast.makeText(requireContext(), "새로운 측정을 시작합니다.", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("아니오") { d, _ ->
+                d.dismiss()
+                //requireActivity().onBackPressedDispatcher.onBackPressed()
+                requireActivity()
+                    .findNavController(R.id.navHostFragment)
+                    .navigate(R.id.mainFragment)
+            }
+            .create()
+
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.setCancelable(false)
+
+        dialog.show()
+    }
+
+
+
     private suspend fun getUserId(): String? {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val userName = prefs.getString("user_name", "") ?: ""
@@ -89,6 +157,7 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
         if (userName.isEmpty() || empNum.isEmpty()) return null
 
         return try {
+            // 세션정보와 db 정보 검증 절차
             val docRef = Firebase.firestore.collection("employees").document(empNum)
             val doc = docRef.get().await()
             if (!doc.exists()) return null
