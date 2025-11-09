@@ -25,19 +25,22 @@ export const loginChecker = onCall({ region: "asia-northeast3" }, async (request
       throw new HttpsError("permission-denied", "이름이 올바르지 않습니다.");
     }
 
-    // 부서 정보 1~4(optional) 읽어오기
-    const depts = [];
-    for (let i = 1; i <= 4; i++) {
-      const value = doc.get(`dept${i}`);
-      if (value) depts.push(value);
-      else break; // 연속 필드만 읽음
+    // 부서 정보 읽어오기 (배열 형태)
+    const depts = doc.get("dept");
+    if (!Array.isArray(depts) || depts.length === 0) {
+      return {
+        status: "success",
+        empNum,
+        name: savedName,
+        departments: "미등록",
+      };
     }
 
     return {
       status: "success",
       empNum,
       name: savedName,
-      departments: depts.length > 0 ? depts : "미등록", // 부서 정보 없을 경우 미등록 반환
+       departments: depts.slice(0, 4), // 부서 정보는 최대 4개까지만 가지므로
     };
   } catch (error: any) {
     console.error("loginChecker 에러:", error);
