@@ -19,6 +19,7 @@ import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentPpgMeasurementBinding
 import com.jjangdol.biorhythm.model.MeasurementState
 import com.jjangdol.biorhythm.model.MeasurementType
+import com.jjangdol.biorhythm.ui.measurement.PPGMeasurementFragment.WorkFitnessLevel
 import com.jjangdol.biorhythm.ui.view.PPGWaveformView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -1146,11 +1147,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                 resetMeasurement()
                 startMeasurement()
             }
-            .setNegativeButton("그래도 계속") { _, _ ->
-                // 강제로 계속 진행 (낮은 점수로)
-                val rawData = buildRawDataJson(result)
-                onMeasurementComplete(result.score, rawData)
-            }
+            .setNegativeButton("그래도 계속", null)
             .setCancelable(false)
             .show()
     }
@@ -1160,7 +1157,8 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
             WorkFitnessLevel.EXCELLENT,
             WorkFitnessLevel.GOOD,
             WorkFitnessLevel.FAIR,
-            WorkFitnessLevel.POOR -> {
+            WorkFitnessLevel.POOR,
+            WorkFitnessLevel.CRITICAL -> {
 
                 val rawData = buildRawDataJson(result)
                 val sessionId = args.sessionId // 이미 SafeArgs로 받은 세션 ID
@@ -1175,8 +1173,6 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
                 }
                 findNavController().navigate(R.id.action_ppg_to_result, bundle)
             }
-
-            WorkFitnessLevel.CRITICAL -> showCriticalDialog(result)
             WorkFitnessLevel.MEASUREMENT_FAILED -> {
                 resetMeasurement()
                 startMeasurement()
