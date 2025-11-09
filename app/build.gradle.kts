@@ -151,6 +151,10 @@ dependencies {
 
     /* --- await() 함수 사용을 위함 --- */
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    /* --- image:Glide--- */
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    kapt ("com.github.bumptech.glide:compiler:4.16.0")
 }
 
 kapt { correctErrorTypes = true }

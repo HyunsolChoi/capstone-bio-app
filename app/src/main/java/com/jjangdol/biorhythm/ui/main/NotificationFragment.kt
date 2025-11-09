@@ -23,6 +23,8 @@ import com.jjangdol.biorhythm.vm.UserNotificationViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 @AndroidEntryPoint
 class NotificationFragment : Fragment(R.layout.fragment_notification) {
@@ -226,11 +228,59 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
     }
 
     // todo 미리보기 구현
+
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
+
+    private fun isImageUrl(url: String): Boolean {
+        val mime = guessMimeFromUrl(url) ?: return false
+        return mime.startsWith("image/")
+    }
+
+    private fun isPdfUrl(url: String): Boolean {
+        val mime = guessMimeFromUrl(url)
+        return (mime == "application/pdf") || url.endsWith(".pdf", ignoreCase = true)
+    }
+
+    private suspend fun downloadToCacheHttps(url: String, fileName: String): java.io.File? = withContext(Dispatchers.IO) {
+            try {
+                val cacheDir = java.io.File(requireContext().cacheDir, "attachments").apply { mkdirs() }
+                val local = java.io.File(cacheDir, fileName)
+                if (local.exists()) return@withContext local
+
+                val conn = java.net.URL(url).openConnection()
+                conn.getInputStream().use { input ->
+                    java.io.FileOutputStream(local).use { out -> input.copyTo(out) }
+                }
+                local
+            } catch (_: Exception) { null }
+        }
+
+    // PDF 1페이지 썸네일 (캐시 파일 필요)
+    private suspend fun renderPdf(pdfFile: java.io.File, reqW: Int, reqH: Int): android.graphics.Bitmap? =
+        withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val pfd = android.os.ParcelFileDescriptor.open(pdfFile, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+                android.graphics.pdf.PdfRenderer(pfd).use { renderer ->
+                    renderer.openPage(0).use { page ->
+                        val scale = minOf(reqW.toFloat() / page.width, reqH.toFloat() / page.height)
+                        val w = (page.width * scale).toInt().coerceAtLeast(1)
+                        val h = (page.height * scale).toInt().coerceAtLeast(1)
+                        val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                        page.render(bmp, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        bmp
+                    }
+                }
+            } catch (_: Exception) { null }
+        }
+
+
     private fun showNotificationDetail(notification: Notification) {
         val inflater = layoutInflater
         val view = inflater.inflate(R.layout.dialog_notification_detail, null)
         val tvContent = view.findViewById<TextView>(R.id.tvContent)
-        val chipGroup = view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupAttachments)
+        val chipGroup =
+            view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupAttachments)
+        val container = view as android.view.ViewGroup
 
         // 본문
         tvContent.text = notification.content
@@ -258,6 +308,83 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
             }
         } else {
             chipGroup.visibility = View.GONE
+        }
+
+        //미리보기
+        val previewTitle = TextView(requireContext()).apply {
+            text = "미리보기"
+            setPadding(16.dp(), 12.dp(), 16.dp(), 4.dp())
+            textSize = 14f
+            setTextColor(requireContext().getColor(R.color.black))
+        }
+        val scroll = android.widget.HorizontalScrollView(requireContext()).apply {
+            isHorizontalScrollBarEnabled = false
+            setPadding(8.dp(), 0, 8.dp(), 8.dp())
+        }
+        val strip = android.widget.LinearLayout(requireContext()).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+        }
+        scroll.addView(strip)
+        container.addView(previewTitle)
+        container.addView(scroll)
+
+        fun makeThumbSlot(): android.widget.FrameLayout =
+            android.widget.FrameLayout(requireContext()).apply {
+                val size = 96.dp()
+                val lp = android.view.ViewGroup.MarginLayoutParams(size, size)
+                    .apply { rightMargin = 10.dp() }
+                layoutParams = lp
+                clipToOutline = true
+                // 썸네일 이미지
+                addView(android.widget.ImageView(requireContext()).apply {
+                    id = View.generateViewId()
+                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                    layoutParams = android.widget.FrameLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                })
+                // 타입 배지
+                addView(android.widget.ImageView(requireContext()).apply {
+                    tag = "badge"
+                    layoutParams = android.widget.FrameLayout.LayoutParams(24.dp(), 24.dp()).apply {
+                        gravity = android.view.Gravity.TOP or android.view.Gravity.END
+                        marginEnd = 6.dp(); topMargin = 6.dp()
+                    }
+                })
+            }
+
+        urls.forEach { url ->
+            val slot = makeThumbSlot()
+            val image = slot.getChildAt(0) as android.widget.ImageView
+            val badge = slot.findViewWithTag<android.widget.ImageView>("badge")
+
+            slot.setOnClickListener { openAttachmentUrl(url) }
+
+            when {
+                isImageUrl(url) -> {
+                    // Glide 권장(있으면 사용). 없으면 placeholder만 표시.
+                    try {
+                        com.bumptech.glide.Glide.with(this)
+                            .load(url)
+                            .thumbnail(0.25f)
+                            .into(image)
+                    } catch (_: Throwable) {
+                    }
+                    badge.setImageDrawable(null)
+                }
+                isPdfUrl(url) -> {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val file = downloadToCacheHttps(url, guessFileName(url))
+                        val bmp = file?.let { renderPdf(it, 320, 320) }
+                        if (bmp != null) image.setImageBitmap(bmp)
+                    }
+                }
+                else -> {
+                    chipGroup.visibility = View.GONE
+                }
+            }
+            strip.addView(slot)
         }
 
         // 알림 다이얼로그
