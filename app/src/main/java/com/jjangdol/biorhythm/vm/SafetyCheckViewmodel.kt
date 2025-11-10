@@ -78,9 +78,16 @@ class SafetyCheckViewModel @Inject constructor(
         }
     }
 
-    private fun getUserProfile(): Pair<String, String>? {
+    private fun getUserProfile(): Pair<List<String>, String>? {
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val dept = prefs.getString("user_dept", "") ?: "부서 미등록" // todo: 부서 디폴트 값 수정 혹은 하위 조건문 수정 필요
+        val deptStr = prefs.getString("dept", "") ?: ""
+
+        // dept를 List<String>으로 변환
+        val dept = when {
+            deptStr.isEmpty() || deptStr == "미등록" -> listOf("미등록") // emptyList() 대신
+            else -> deptStr.split(",").map { it.trim() }
+        }
+
         val name = prefs.getString("user_name", "") ?: ""
 
         return if (name.isNotEmpty()) {
@@ -89,7 +96,6 @@ class SafetyCheckViewModel @Inject constructor(
             null
         }
     }
-
 
     fun startNewSession(session: SafetyCheckSession) {
         _currentSession.value = session

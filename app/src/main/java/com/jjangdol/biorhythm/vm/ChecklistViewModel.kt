@@ -19,10 +19,10 @@ class ChecklistViewModel @Inject constructor(
     val items: StateFlow<List<ChecklistItem>> = _items
 
     init {
-        val col = firestore
+        val db = firestore
             .collection("checklist")
 
-        col.addSnapshotListener { snaps, err ->
+        db.addSnapshotListener { snaps, err ->
             if (err != null) {
                 err.printStackTrace()
                 return@addSnapshotListener
@@ -33,10 +33,14 @@ class ChecklistViewModel @Inject constructor(
                     val question = doc.getString("question") ?: return@mapNotNull null
                     val weight = doc.getLong("weight")?.toInt() ?: return@mapNotNull null
                     val options = doc.get("options") as? List<String>
+                    val optionWeights = (doc.get("optionWeights") as? List<*>)?.mapNotNull {
+                        (it as? Number)?.toInt()
+                    }
                     ChecklistItem(
                         id = doc.id,
                         question = question,
-                        weight = weight,
+                        _weight = weight,
+                        _optionWeights = optionWeights,
                         options = options
                     )
                 }
@@ -55,7 +59,7 @@ class ChecklistViewModel @Inject constructor(
     fun answerChanged(position: Int, selectedOption: Int) {
         val updatedList = items.value.toMutableList()
         val item = updatedList[position]
-        updatedList[position] = item.copy(selectedOption = selectedOption)
+        updatedList[position] = item.copy(_selectedOption = selectedOption)
         _items.value = updatedList
     }
 }

@@ -15,15 +15,20 @@ object ScoreCalculator {
     fun calcChecklistScore(items: List<ChecklistItem>): Int {
         if (items.isEmpty()) return 0
 
+        val totalQuestionWeight = items.sumOf { it.weight }
+        if (totalQuestionWeight == 0) return 0
+
         return items.sumOf { item ->
             val questionWeight = item.weight
             val selected = item.selectedOption ?: return@sumOf 0
-            val optionWeights = item.optionWeights ?: listOf(0, 25, 50, 75, 100) // 기본 5단계 비율
+            val optionWeights = item.optionWeights ?: listOf(0, 0, 0, 0, 0)
 
             // 선택지 번호는 1부터 시작하므로 index 보정
             val selectedWeight = optionWeights.getOrNull(selected - 1) ?: 0
 
-            (questionWeight * (selectedWeight / 100.0)).toInt()
+            //(questionWeight * (selectedWeight / totalQuestionWeight.toDouble())).toInt()
+            // todo: 하위 점수는 테스트용임. 테스트 종료 시 주석된 코드로 사용 요망
+            questionWeight * selectedWeight
         }
     }
 
