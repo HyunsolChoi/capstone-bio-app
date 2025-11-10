@@ -30,7 +30,7 @@ class ResultsAdapter : ListAdapter<ChecklistResult, ResultsAdapter.VH>(DIFF_CALL
     class VH(private val b: ItemResultBinding) : RecyclerView.ViewHolder(b.root) {
         fun bind(r: ChecklistResult) {
             b.tvName.text = r.name
-            b.tvDept.text = r.dept
+            b.tvDept.text = r.dept.joinToString(", ")
             b.tvChecklistScore.text = r.checklistScore.toString()
             b.tvFinalScore.text = r.finalScore.toString()
             b.tvDate.text = r.date

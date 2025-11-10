@@ -5,8 +5,9 @@ package com.jjangdol.biorhythm.model
  */
 data class ChecklistResult(
     val userId: String = "",
+    val empNum: String = "",
     val name: String = "",
-    val dept: String = "",
+    val dept: List<String> = emptyList(),
     val date: String = "",
 
     // 점수 관련

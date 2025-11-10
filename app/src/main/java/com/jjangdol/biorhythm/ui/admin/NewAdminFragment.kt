@@ -8,7 +8,6 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,7 +18,6 @@ import com.jjangdol.biorhythm.data.ResultsRepository
 import com.jjangdol.biorhythm.model.ChecklistResult
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CancellationException
@@ -27,7 +25,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
@@ -40,7 +37,7 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
     @Inject lateinit var resultsRepository: ResultsRepository
 
     // Firebase Firestore 인스턴스
-    private val firestore = FirebaseFirestore.getInstance()
+    private val db = FirebaseFirestore.getInstance()
 
     private lateinit var adminResultsAdapter: AdminResultsAdapter
 
@@ -136,7 +133,7 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 try {
                     // 선택된 날짜에 따라 다른 메서드 사용
-                    resultsRepository.watchResultsByDate(selectedDate).collectLatest { results ->
+                    resultsRepository.watchResultsByDate(selectedDate, requireContext()).collectLatest { results ->
                         // Fragment가 여전히 활성 상태인지 확인
                         if (isAdded && _binding != null && !requireActivity().isFinishing) {
                             allResults = results
@@ -294,11 +291,11 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
             return
         }
 
-        firestore.collection("employees")
+        db.collection("employees")
             .document(empNum)
             .get()
             .addOnSuccessListener { document ->
-                val savedPassword = document.getString("Password") ?: "admin123"
+                val savedPassword = document.getString("Password") ?: ""
                 callback(inputPassword == savedPassword)
             }
             .addOnFailureListener { exception ->
@@ -319,7 +316,7 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
             return
         }
 
-        firestore.collection("employees")
+        db.collection("employees")
             .document(empNum)
             .set(passwordData, SetOptions.merge())
             .addOnSuccessListener {

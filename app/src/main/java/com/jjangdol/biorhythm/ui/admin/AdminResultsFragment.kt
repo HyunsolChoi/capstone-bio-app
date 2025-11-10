@@ -68,7 +68,7 @@ class AdminResultsFragment : Fragment(R.layout.fragment_admin_results) {
     private fun observeResults() {
         lifecycleScope.launch {
             try {
-                repo.watchTodayResults().collectLatest { list: List<ChecklistResult> ->
+                repo.watchTodayResults(requireContext()).collectLatest { list: List<ChecklistResult> ->
                     handleResultsUpdate(list)
                 }
             } catch (e: Exception) {

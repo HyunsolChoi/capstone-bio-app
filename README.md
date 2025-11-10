@@ -93,7 +93,7 @@ app/
 
 .firebaserc 의 projects.default는 Project ID
 
-firebase functions:config:set weather.service_key="공공데이터포털서비스키"
+firebase functions:config:set weather.service_key="기상청hub API-key"
 + api 사용 
 
 ---
