@@ -256,9 +256,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 "1" -> "맑음" to R.drawable.ic_weather_sunny
                 "3" -> "구름많음" to R.drawable.ic_weather_cloudy
                 "4" -> "흐림" to R.drawable.ic_weather_cloudy
-                else -> "알 수 없음"
+                else -> "알 수 없음" to R.drawable.ic_weather_sunny
             }
-
             "1" -> "비" to R.drawable.ic_weather_rainy
             "2" -> "비/눈" to R.drawable.ic_weather_rain_and_snow
             "3" -> "눈" to R.drawable.ic_weather_snowy
@@ -266,8 +265,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             "5" -> "빗방울" to R.drawable.ic_weather_rainy
             "6" -> "빗방울/눈날림" to R.drawable.ic_weather_rain_and_snow
             "7" -> "눈날림" to R.drawable.ic_weather_snowy
-            else -> "알 수 없음"
-        } as Pair<String, Int>
+            else -> "알 수 없음" to R.drawable.ic_weather_sunny
+        }
     }
 
     /** 기기의 최근 위치가 확인이 안 된다면, 대체(백업) 경로 가져오기 */

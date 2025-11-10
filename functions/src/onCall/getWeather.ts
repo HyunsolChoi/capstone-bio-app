@@ -105,23 +105,28 @@ export const getWeatherData = onCall({ secrets: [serviceKey] }, async (request) 
     }
 
     // 5. 데이터 가공 및 반환 형식 맞추기
-    const targetFcstTime = items[0].fcstTime;
-    const targetCategories = new Set(["T1H", "RN1", "REH", "PTY", "WSD", "VEC", "SKY"]);
+    const targetCategories = new Set(["T1H", "RN1", "REH", "PTY", "WSD", "VEC"]);
 
     // category를 키로, fcstValue를 값으로 하는 객체를 생성
     const processedData = items
-      .filter((item: any) =>
-        item.fcstTime === targetFcstTime && targetCategories.has(item.category)
-      )
+      .filter((item: any) => {
+        const isTarget = targetCategories.has(item.category);
+        const hasValue = item.obsrValue !== undefined && item.obsrValue !== null;
+
+        logger.info(`카테고리 ${item.category}: 타겟=${isTarget}, 값=${item.obsrValue}`);
+        return isTarget && hasValue;
+      })
       .reduce((acc: any, item: any) => {
-        acc[item.category] = item.fcstValue;
+        acc[item.category] = item.obsrValue;
         return acc;
       }, {});
 
-    processedData.fcstDate = items[0].fcstDate;
-    processedData.fcstTime = items[0].fcstTime;
+    processedData.baseDate = items[0].baseDate;
+    processedData.baseTime = items[0].baseTime;
 
-    // 6. Firestore에 새로운 데이터 저장 (백그라운드에서 실행되도록 await 제거)
+    logger.info(`최종 processedData:`, JSON.stringify(processedData));
+
+    // 6. Firestore에 새로운 데이터 저장
     weatherDocRef.set({
       data: processedData,
       baseDate: baseDate,
