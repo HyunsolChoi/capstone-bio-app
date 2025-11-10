@@ -43,7 +43,7 @@ data class SafetyCheckResult(
     val pupilScore: Float = 0f,
     val ppgScore: Float = 0f,
     val finalSafetyScore: Float = 0f,
-    val safetyLevel: SafetyLevel = SafetyLevel.CAUTION,
+    val safetyLevel: SafetyLevel = SafetyLevel.fromScore(finalSafetyScore),
     val date: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val recommendations: List<String> = emptyList()
