@@ -13,7 +13,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentNotificationBinding
@@ -275,12 +274,28 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
 
 
     private fun showNotificationDetail(notification: Notification) {
+        val displayMetrics = resources.displayMetrics
+        val maxHeight = (displayMetrics.heightPixels * 0.6).toInt()
         val inflater = layoutInflater
         val view = inflater.inflate(R.layout.dialog_notification_detail, null)
         val tvContent = view.findViewById<TextView>(R.id.tvContent)
         val chipGroup =
             view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupAttachments)
-        val container = view as android.view.ViewGroup
+
+        val container = android.widget.LinearLayout(requireContext()).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
+
+        val scrollView = android.widget.ScrollView(requireContext()).apply {
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                maxHeight
+            )
+            isScrollbarFadingEnabled = false
+            isVerticalScrollBarEnabled = true
+        }
+        scrollView.addView(container)
 
         // 본문
         tvContent.text = notification.content
@@ -309,6 +324,8 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
         } else {
             chipGroup.visibility = View.GONE
         }
+
+        container.addView(view)
 
         //미리보기
         val previewTitle = TextView(requireContext()).apply {
@@ -390,7 +407,7 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
         // 알림 다이얼로그
         AlertDialog.Builder(requireContext())
             .setTitle("${notification.priority.displayName} 알림")
-            .setView(view)
+            .setView(scrollView)
             .setPositiveButton("확인", null)
             .setNeutralButton("공유") { _, _ ->
                 shareNotification(notification)

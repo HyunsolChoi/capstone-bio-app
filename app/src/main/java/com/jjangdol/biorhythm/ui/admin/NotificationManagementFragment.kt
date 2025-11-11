@@ -560,14 +560,39 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
     }
 
     private fun showNotificationDetailDialog(notification: Notification) {
+        val displayMetrics = resources.displayMetrics
+        val maxHeight = (displayMetrics.heightPixels * 0.6).toInt()
+        val scrollView = android.widget.ScrollView(requireContext()).apply {
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                maxHeight // 최대 높이 설정
+            )
+            setPadding(50, 20, 50, 20)
+            isScrollbarFadingEnabled = false
+            isVerticalScrollBarEnabled = true
+        }
+
+        val textView = android.widget.TextView(requireContext()).apply {
+            text = buildString {
+                append("제목: ${notification.title}\n\n")
+                append("내용: ${notification.content}\n\n")
+                append("작성일: ${notification.createdAt?.toDate()?.toString() ?: "알 수 없음"}\n")
+                append("상태: ${if (notification.active) "활성" else "비활성"}\n")
+                append("우선순위: ${notification.priority.displayName}\n")
+                notification.auth?.let { append("권한: $it\n") }
+                notification.targetDept?.let { append("수신 부서: ${it.joinToString(", ")}\n") }
+                notification.attachmentUrl?.let {
+                    if (it.isNotEmpty()) append("첨부파일: ${it.size}개\n")
+                }
+            }
+            textSize = 16f
+            setTextIsSelectable(true)
+        }
+        scrollView.addView(textView)
+
         AlertDialog.Builder(requireContext())
             .setTitle("${notification.priority.displayName} 알림")
-            .setMessage(
-                "제목: ${notification.title}\n\n" +
-                        "내용: ${notification.content}\n\n" +
-                        "작성일: ${notification.createdAt?.toDate()?.toString() ?: "알 수 없음"}\n" +
-                        "상태: ${if (notification.active) "활성" else "비활성"}"
-            )
+            .setView(scrollView)
             .setPositiveButton("확인", null)
             .show()
     }
