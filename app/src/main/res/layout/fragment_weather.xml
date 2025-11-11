@@ -344,9 +344,6 @@
                         android:layout_marginEnd="12dp"/>
 
                 </LinearLayout>
-
-
-
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
@@ -361,27 +358,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
-
-<!--        <Button-->
-<!--            android:id="@+id/Endbutton"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_marginTop="75dp"-->
-<!--            android:layout_marginBottom="212dp"-->
-<!--            android:insetTop="0dp"-->
-<!--            android:orientation="horizontal"-->
-<!--            android:padding="16dp"-->
-<!--            android:text="작업 종료"-->
-<!--            android:textSize="18sp"-->
-<!--            android:textStyle="bold"-->
-<!--            app:backgroundTint="#2196F3"-->
-<!--            app:cornerRadius="12dp"-->
-<!--            app:layout_constraintBottom_toBottomOf="parent"-->
-<!--            app:layout_constraintEnd_toEndOf="parent"-->
-<!--            app:layout_constraintHorizontal_bias="0.0"-->
-<!--            app:layout_constraintStart_toStartOf="parent"-->
-<!--            app:layout_constraintTop_toBottomOf="@+id/worktimecard"-->
-<!--            app:layout_constraintVertical_bias="1.0" />-->
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>
