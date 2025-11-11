@@ -86,15 +86,24 @@ class NotificationRepository @Inject constructor() {
         notificationId: String,
         title: String,
         content: String,
-        priority: NotificationPriority
+        priority: NotificationPriority,
+        auth: Int? = null,
+        targetDept: List<String>? = null,
+        attachmentUrl: List<String>? = null,
     ): Result<Unit> {
         return try {
-            val updates = mapOf(
+            val updates = mutableMapOf<String, Any>(
                 "title" to title,
                 "content" to content,
                 "priority" to priority.name,
                 "updatedAt" to com.google.firebase.Timestamp.now()
             )
+
+            auth?.let { updates["auth"] = it }
+            targetDept?.let { updates["targetDept"] = it }
+
+            // 선택적으로 첨부파일 업데이트
+            attachmentUrl?.let { updates["attachmentUrl"] = it }
 
             notificationsCollection.document(notificationId)
                 .update(updates)

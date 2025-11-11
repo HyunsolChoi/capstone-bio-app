@@ -26,6 +26,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
+
 @HiltViewModel
 class NotificationManagementViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository, @ApplicationContext private val appContext: Context
@@ -172,19 +173,50 @@ class NotificationManagementViewModel @Inject constructor(
         notificationId: String,
         title: String,
         content: String,
-        priority: NotificationPriority
+        priority: NotificationPriority,
+        auth: Int? = null,
+        targetDept: List<String>? = null,
+        attachmentUrl: List<String>? = null,
+        newAttachmentUris: List<Uri>? = null
     ) {
         viewModelScope.launch {
-            notificationRepository.updateNotification(notificationId, title, content, priority)
-                .onSuccess {
+            try {
+                _uiState.value = UiState.Loading
+
+                ensureSignedIn()
+
+                // 새 파일들을 Firebase Storage에 업로드 (기존 uploadOne 재사용)
+                val uploadedUrls = if (!newAttachmentUris.isNullOrEmpty()) {
+                    uploadAttachments(newAttachmentUris)
+                } else {
+                    emptyList()
+                }
+
+                // 기존 URL + 새로 업로드된 URL 합치기
+                val finalAttachmentUrls = (attachmentUrl ?: emptyList()) + uploadedUrls
+
+                val result = notificationRepository.updateNotification(
+                    notificationId = notificationId,
+                    title = title,
+                    content = content,
+                    priority = priority,
+                    auth = auth,
+                    targetDept = targetDept,
+                    attachmentUrl = if (finalAttachmentUrls.isEmpty()) null else finalAttachmentUrls
+                )
+
+                if (result.isSuccess) {
                     _uiState.value = UiState.Success("알림이 수정되었습니다")
+                    refreshNotifications()
+                } else {
+                    _uiState.value = UiState.Error("알림 수정 실패: ${result.exceptionOrNull()?.message}")
                 }
-                .onFailure { exception ->
-                    _uiState.value = UiState.Error("알림 수정에 실패했습니다: ${exception.message}")
-                }
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "알림 수정 실패", e)
+                _uiState.value = UiState.Error("알림 수정 실패: ${e.message}")
+            }
         }
     }
-
     fun deleteNotification(notificationId: String) {
         viewModelScope.launch {
             notificationRepository.deleteNotification(notificationId)

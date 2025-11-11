@@ -43,6 +43,7 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
     private var filterPriority: NotificationPriority? = null
 
     private val selectedAttachmentUris = mutableListOf<Uri>()
+    private val editAttachmentUris = mutableListOf<Uri>()
     private companion object { const val DEPT_ALL = "전체" }
     private val selectedDeptPathGlobal: MutableList<String> = mutableListOf()
 
@@ -53,6 +54,22 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         }
     }
 
+    private val openDocumentsForEdit = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments())
+    { uris ->
+        if (!uris.isNullOrEmpty()) {
+            uris.forEach { uri ->
+                requireContext().contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                editAttachmentUris.add(uri)
+            }
+            // 콜백으로 UI 업데이트
+            currentAttachmentStatusCallback?.invoke()
+        }
+    }
+
+    private var currentAttachmentStatusCallback: (() -> Unit)? = null
+    private var currentReceiverStatusCallback: (() -> Unit)? = null
     private var selectAuth: MutableSet<String> = mutableSetOf()
     private var selectDept: MutableSet<String> = mutableSetOf()
 
@@ -426,6 +443,7 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                     if (!selectDept.contains(DEPT_ALL)) {
                         selectedDeptPathGlobal.addAll(selectedDeptPath)
                     }
+                    currentReceiverStatusCallback?.invoke()
                     d.dismiss()
                 }
                 .show()
@@ -554,25 +572,108 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
             .show()
     }
 
+    //todo:수정 시 다이얼로그 UI 변경
     private fun showEditNotificationDialog(notification: Notification) {
         val layout = android.widget.LinearLayout(requireContext()).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(50, 40, 50, 10)
         }
 
+        // 제목 수정
         val titleEdit = android.widget.EditText(requireContext()).apply {
             setText(notification.title)
             hint = "제목"
         }
+        layout.addView(titleEdit)
 
+        // 내용 수정
         val contentEdit = android.widget.EditText(requireContext()).apply {
             setText(notification.content)
             hint = "내용"
-            maxLines = 3
+        }
+        layout.addView(contentEdit)
+
+        // 수신자 정보 초기화 (기존 알림 정보 로드)
+        selectAuth.clear()
+        selectDept.clear()
+        selectedDeptPathGlobal.clear()
+
+        notification.auth?.let { selectAuth.add(it.toString()) }
+        notification.targetDept?.let {
+            selectDept.addAll(it)
+            if (!it.contains(DEPT_ALL)) {
+                // targetDept에서 경로 복원
+                it.lastOrNull()?.split("/")?.let { path ->
+                    selectedDeptPathGlobal.addAll(path)
+                }
+            }
         }
 
-        layout.addView(titleEdit)
-        layout.addView(contentEdit)
+        // 수신자 그룹 상태 업데이트
+        fun updateReceiverStatus(textView: android.widget.TextView) {
+            val authText = if (selectAuth.isNotEmpty()) {
+                "권한: ${selectAuth.first()}"
+            } else { notification.auth?.let { "권한: $it" } ?: "권한: 미설정" }
+
+            val deptText = if (selectDept.isNotEmpty()) {
+                "부서: ${selectDept.joinToString(", ")}"
+            } else { notification.targetDept?.joinToString(", ")?.let { "부서: $it" } ?: "부서: 미설정" }
+
+            textView.text = "수신자 그룹 - $authText, $deptText"
+        }
+
+        // 수신자 그룹 상태 표시
+        val receiverStatus = android.widget.TextView(requireContext()).apply {
+            setPadding(0, 20, 0, 10)
+        }
+        updateReceiverStatus(receiverStatus)
+        layout.addView(receiverStatus)
+        currentReceiverStatusCallback = { updateReceiverStatus(receiverStatus) }
+
+        // 수신자 그룹 선택
+        val receiverButton = com.google.android.material.button.MaterialButton(requireContext()).apply {
+            text = "수신자 그룹 변경"
+            setOnClickListener { openReceiverDropdownDialog() }
+        }
+        layout.addView(receiverButton)
+
+        // 첨부파일 관리를 위한 임시 리스트
+        val editAttachments = (notification.attachmentUrl ?: emptyList()).toMutableList()
+        editAttachmentUris.clear() // 수정용 첨부파일 리스트 초기화
+
+        // 첨부파일 상태 업데이트
+        fun updateAttachmentStatus(textView: android.widget.TextView) {
+            val totalCount = editAttachments.size + editAttachmentUris.size
+            textView.text = if (totalCount == 0) "첨부파일 없음"
+            else "첨부파일 ${totalCount}개"
+        }
+
+        // 첨부파일 상태 표시
+        val attachmentStatus = android.widget.TextView(requireContext()).apply {
+            setPadding(0, 20, 0, 10)
+        }
+        updateAttachmentStatus(attachmentStatus)
+        layout.addView(attachmentStatus)
+        currentAttachmentStatusCallback = { updateAttachmentStatus(attachmentStatus) }
+
+        // 첨부파일 추가
+        val addFileButton = com.google.android.material.button.MaterialButton(requireContext()).apply {
+            text = "첨부파일 추가"
+            setOnClickListener { openDocumentsForEdit.launch(arrayOf("image/*", "application/pdf")) }
+        }
+        layout.addView(addFileButton)
+
+        // 기존 첨부파일 삭제
+        if (editAttachments.isNotEmpty()) {
+            val clearOldFilesButton = com.google.android.material.button.MaterialButton(requireContext()).apply {
+                text = "기존 첨부파일 모두 삭제"
+                setOnClickListener {
+                    editAttachments.clear()
+                    updateAttachmentStatus(attachmentStatus)
+                }
+            }
+            layout.addView(clearOldFilesButton)
+        }
 
         AlertDialog.Builder(requireContext())
             .setTitle("알림 수정")
@@ -582,17 +683,39 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
                 val newContent = contentEdit.text.toString().trim()
 
                 if (newTitle.isNotEmpty() && newContent.isNotEmpty()) {
+                    // 기존 첨부파일 + 새로 추가된 첨부파일 병합
+                    val finalAttachments = editAttachments + editAttachmentUris.map { it.toString() }
+
+                    val targetDeptList = if (selectDept.contains(DEPT_ALL)) {
+                        listOf(DEPT_ALL)
+                    } else if (selectedDeptPathGlobal.isNotEmpty()) {
+                        buildDeptTargetsFromPath(selectedDeptPathGlobal)
+                    } else {
+                        notification.targetDept
+                    }
+
                     viewModel.updateNotification(
-                        notification.id,
-                        newTitle,
-                        newContent,
-                        notification.priority
+                        notificationId = notification.id,
+                        title = newTitle,
+                        content = newContent,
+                        priority = notification.priority,
+                        auth = selectAuth.firstOrNull()?.toIntOrNull() ?: notification.auth,
+                        targetDept = targetDeptList,
+                        attachmentUrl = editAttachments,
+                        newAttachmentUris = editAttachmentUris.toList()
                     )
+                    currentAttachmentStatusCallback = null
+                    currentReceiverStatusCallback = null
+                    editAttachmentUris.clear()
                 } else {
                     Toast.makeText(requireContext(), "제목과 내용을 모두 입력하세요", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("취소", null)
+            .setNegativeButton("취소") { _, _ ->
+                currentAttachmentStatusCallback = null
+                currentReceiverStatusCallback = null
+                editAttachmentUris.clear()
+            }
             .show()
     }
 
