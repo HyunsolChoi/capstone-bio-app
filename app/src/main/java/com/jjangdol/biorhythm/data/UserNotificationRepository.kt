@@ -81,6 +81,9 @@ class UserNotificationRepository @Inject constructor(
         return try {
             val userId = getCurrentUserId() ?: return Result.failure(Exception("사용자 정보를 찾을 수 없습니다"))
             val docRef = userNotificationsCollection.document(userId)
+            val notifDocRef = firestore.collection("notifications").document(notificationId)
+            val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            val empNum = prefs.getString("emp_num", "") ?: ""
 
             firestore.runTransaction { transaction ->
                 val snapshot = transaction.get(docRef)
@@ -96,6 +99,8 @@ class UserNotificationRepository @Inject constructor(
                 }
             }.await()
 
+            notifDocRef.update("readBy", com.google.firebase.firestore.FieldValue.arrayUnion(empNum)).await()
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -108,21 +113,26 @@ class UserNotificationRepository @Inject constructor(
     suspend fun markAllAsRead(): Result<Unit> {
         return try {
             val userId = getCurrentUserId() ?: return Result.failure(Exception("사용자 정보를 찾을 수 없습니다"))
+            val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            val empNum = prefs.getString("emp_num", "") ?: ""
 
             // 모든 활성 알림 ID 가져오기
-            val allNotificationIds = mutableListOf<String>()
-            firestore.collection("notifications")
+            val allNotifications = firestore.collection("notifications")
                 .whereEqualTo("active", true)
                 .get()
                 .await()
-                .documents
-                .forEach { doc -> allNotificationIds.add(doc.id) }
+
+            val allNotificationIds = allNotifications.documents.map { it.id }
 
             val docRef = userNotificationsCollection.document(userId)
             docRef.set(mapOf(
                 "readNotifications" to allNotificationIds,
                 "lastUpdated" to com.google.firebase.Timestamp.now()
             ), com.google.firebase.firestore.SetOptions.merge()).await()
+
+            allNotifications.documents.forEach { doc ->
+                doc.reference.update("readBy", com.google.firebase.firestore.FieldValue.arrayUnion(empNum)).await()
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -137,6 +147,8 @@ class UserNotificationRepository @Inject constructor(
         return try {
             val userId = getCurrentUserId() ?: return Result.failure(Exception("사용자 정보를 찾을 수 없습니다"))
             val docRef = userNotificationsCollection.document(userId)
+            val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            val empNum = prefs.getString("emp_num", "") ?: ""
 
             firestore.runTransaction { transaction ->
                 val snapshot = transaction.get(docRef)
@@ -149,6 +161,13 @@ class UserNotificationRepository @Inject constructor(
                     "lastUpdated" to com.google.firebase.Timestamp.now()
                 ), com.google.firebase.firestore.SetOptions.merge())
             }.await()
+
+            notificationIds.forEach { notificationId ->
+                firestore.collection("notifications")
+                    .document(notificationId)
+                    .update("readBy", com.google.firebase.firestore.FieldValue.arrayUnion(empNum))
+                    .await()
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {

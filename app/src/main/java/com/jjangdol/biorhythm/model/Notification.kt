@@ -19,7 +19,8 @@ data class Notification(
     @ServerTimestamp
     val updatedAt: Timestamp? = null,
     val createdBy: String = "admin",
-    val attachmentUrl: List<String> = emptyList()
+    val attachmentUrl: List<String> = emptyList(),
+    val readBy: List<String>? = null
 ) {
     // Firestore용 빈 생성자
     constructor() : this(
@@ -30,7 +31,8 @@ data class Notification(
         active = true,  // isActive -> active 변경
         createdAt = null,
         updatedAt = null,
-        createdBy = "admin"
+        createdBy = "admin",
+        readBy = null
     )
 }
 

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.google.firebase.firestore.Query
 
 @Singleton
 class NotificationRepository @Inject constructor() {
@@ -58,7 +59,8 @@ class NotificationRepository @Inject constructor() {
         priority: NotificationPriority = NotificationPriority.NORMAL,
         attachmentUrl: List<String> = emptyList(),
         auth: Int,
-        targetDept: List<String>
+        targetDept: List<String>,
+        readBy: List<String> = emptyList()
     ): Result<String> {
         return try {
             val notification = Notification(
@@ -69,7 +71,8 @@ class NotificationRepository @Inject constructor() {
                 createdBy = "admin",
                 attachmentUrl = attachmentUrl,
                 auth = auth,
-                targetDept = targetDept
+                targetDept = targetDept,
+                readBy = readBy
             )
 
             val documentRef = notificationsCollection.add(notification).await()
@@ -152,5 +155,67 @@ class NotificationRepository @Inject constructor() {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    //읽지 않은 사용자 조회
+    suspend fun getUnreadUsers(
+        notificationId: String,
+        targetAuth: Int?,
+        targetDept: List<String>?
+    ): Result<List<String>> {
+        return try {
+            val db = FirebaseFirestore.getInstance()
+
+            // 알림에서 readBy 가져오기
+            val notificationDoc = notificationsCollection.document(notificationId).get().await()
+            val readByEmpNums = notificationDoc.get("readBy") as? List<String> ?: emptyList()
+
+            // Auth 필터링
+            val allEmployees = if (targetAuth != null && targetAuth != 2) {
+                var result = db.collection("employees").whereEqualTo("auth", targetAuth).get().await()
+
+                if (result.isEmpty) {
+                    result = db.collection("employees").whereEqualTo("auth", targetAuth.toLong()).get().await()
+                }
+                result
+            } else{ db.collection("employees").get().await() }
+
+            if (allEmployees.isEmpty) { return Result.success(emptyList()) }
+
+            // targetDept 필터링
+            val targetEmployees = if (targetDept != null && !targetDept.contains("전체")) {
+                val filtered = allEmployees.documents.filter { doc ->
+                    val empDeptArray = doc.get("dept") as? List<String> ?: emptyList()
+
+                    val isMatch = targetDept.any { target ->
+                        empDeptArray.any { empDept ->
+                            empDept.startsWith(target, ignoreCase = true) ||
+                                    target.startsWith(empDept, ignoreCase = true)
+                        }
+                    }
+                    isMatch
+                }
+                filtered
+            } else { allEmployees.documents }
+
+            if (targetEmployees.isEmpty()) { return Result.success(emptyList()) }
+
+            // readBy에 없는 직원 찾기
+            val unreadUsers = targetEmployees
+                .filter { doc ->
+                    val empNum = doc.id
+                    val isRead = readByEmpNums.contains(empNum)
+                    !isRead
+                }
+                .map { doc ->
+                    val name = doc.getString("Name") ?: "이름 없음"
+                    val empNum = doc.id
+                    val deptArray = doc.get("dept") as? List<String> ?: emptyList()
+                    val deptStr = deptArray.lastOrNull() ?: "부서 미지정"
+                    "$name $empNum ($deptStr)"
+                }
+            Result.success(unreadUsers)
+
+        } catch (e: Exception) { Result.failure(e) }
     }
 }

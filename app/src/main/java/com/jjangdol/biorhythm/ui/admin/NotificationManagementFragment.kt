@@ -572,6 +572,13 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
             isVerticalScrollBarEnabled = true
         }
 
+        val container = android.widget.LinearLayout(requireContext()).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
+
+        scrollView.addView(container)
+
         val textView = android.widget.TextView(requireContext()).apply {
             text = buildString {
                 append("제목: ${notification.title}\n\n")
@@ -588,7 +595,32 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
             textSize = 16f
             setTextIsSelectable(true)
         }
-        scrollView.addView(textView)
+        container.addView(textView)
+
+        val unreadTitle = android.widget.TextView(requireContext()).apply {
+            text = "읽지 않은 사용자"
+            textSize = 16f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(0, 10, 0, 10)
+            setTextColor(requireContext().getColor(R.color.black))
+        }
+        container.addView(unreadTitle)
+
+        val unreadUsersText = android.widget.TextView(requireContext()).apply {
+            text = "불러오는 중"
+            textSize = 14f
+            setPadding(0, 0, 0, 10)
+        }
+        container.addView(unreadUsersText)
+
+        viewModel.loadUnreadUsers(notification.id, notification.auth, notification.targetDept)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.unreadUsers.collectLatest { users ->
+                unreadUsersText.text = if (users.isEmpty()) { "읽지 않은 사용자가 없습니다." }
+                else { users.joinToString("\n") { "• $it" } }
+            }
+        }
 
         AlertDialog.Builder(requireContext())
             .setTitle("${notification.priority.displayName} 알림")

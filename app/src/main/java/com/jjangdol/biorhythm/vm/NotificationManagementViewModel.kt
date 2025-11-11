@@ -40,6 +40,9 @@ class NotificationManagementViewModel @Inject constructor(
 
     private val storage = com.google.firebase.storage.FirebaseStorage.getInstance("gs://bio-app-d2b71.firebasestorage.app")
 
+    private val _unreadUsers = MutableStateFlow<List<String>>(emptyList())
+    val unreadUsers : StateFlow<List<String>> = _unreadUsers.asStateFlow()
+
     val notifications = combine(
         allNotifications,
         _filterPriority
@@ -248,5 +251,19 @@ class NotificationManagementViewModel @Inject constructor(
     fun refreshNotifications() {
         // 새로고침 로직 (Repository에서 자동으로 실시간 업데이트됨)
         _uiState.value = UiState.Success("목록을 새로고침했습니다")
+    }
+
+    //읽지 않은 사용자
+    fun loadUnreadUsers(notificationId: String, targetAuth: Int?, targetDept: List<String>?) {
+        viewModelScope.launch {
+            try {
+                val result = notificationRepository.getUnreadUsers(notificationId, targetAuth, targetDept)
+                if (result.isSuccess) {
+                    _unreadUsers.value = result.getOrNull() ?: emptyList()
+                } else {
+                    _unreadUsers.value = emptyList()
+                }
+            } catch (e: Exception) { _unreadUsers.value = emptyList() }
+        }
     }
 }
