@@ -659,15 +659,20 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                         // UI 업데이트
                         binding.tvStartTime.text = displayStartTime
                         binding.tvEndTime.text = displayEndTime
+
+                        // 버튼 상태 업데이트
+                        updateButtonState(startTime, endTime)
                     } else {
                         // 해당 사번 데이터 없음
                         binding.tvStartTime.text = "00:00"
                         binding.tvEndTime.text = "00:00"
+                        updateButtonState(null, null)
                     }
                 } else {
                     // 해당 날짜 문서 없음
                     binding.tvStartTime.text = "00:00"
                     binding.tvEndTime.text = "00:00"
+                    updateButtonState(null, null)
                 }
             }
             .addOnFailureListener { e ->
@@ -675,6 +680,30 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 binding.tvStartTime.text = "00:00"
                 binding.tvEndTime.text = "00:00"
             }
+    }
+
+    // 버튼 상태 업데이트
+    private fun updateButtonState(startTime: String?, endTime: String?) {
+        when {
+            // StartTime이 없으면 버튼 비활성화
+            startTime.isNullOrEmpty() -> {
+                binding.Endbutton.isEnabled = false
+                binding.Endbutton.alpha = 0.5f
+                binding.Endbutton.text = "작업 시작 전"
+            }
+            // EndTime이 이미 있으면 버튼 비활성화
+            !endTime.isNullOrEmpty() -> {
+                binding.Endbutton.isEnabled = false
+                binding.Endbutton.alpha = 0.5f
+                binding.Endbutton.text = "작업 종료됨"
+            }
+            // StartTime만 있고 EndTime이 없으면 버튼 활성화
+            else -> {
+                binding.Endbutton.isEnabled = true
+                binding.Endbutton.alpha = 1.0f
+                binding.Endbutton.text = "작업 종료"
+            }
+        }
     }
 
     // 시간 형식 변환 (HH:mm:ss -> HH:mm)
@@ -693,6 +722,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
     // 작업 종료시간을 Firebase에 업로드. WorkTime/날짜의 필드로 사번 : { EndTime : "시간" } 업로드
     // TODO : 작업 시작 처리가 안됐을 경우(생체 측정 검사를 아직 안 받은 경우) 작업 종료 버튼을 비활성화 or 클릭했을때 종료 처리가 안돼도록 할 예정, 그리고 작업 종료 버튼을 이미 눌렀는데 또 누른 경우 EndTime을 업데이트 하지 못하도록 할 예정.
+    // 작업 시작 여부에 따른 버튼 클릭 이벤트
     private fun saveEndTimeToFirestore() {
         val db = FirebaseFirestore.getInstance()
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
@@ -700,22 +730,77 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
         if (empNum.isNullOrEmpty()) return
 
-        // 현재 날짜와 시간 계산
-        val currentDate = LocalDate.now().toString() // 예: "2025-11-08"
+        val currentDate = LocalDate.now().toString()
+
+        // 먼저 StartTime 존재 여부와 EndTime 중복 여부 확인
+        db.collection("WorkTime")
+            .document(currentDate)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val empData = document.get(empNum) as? Map<*, *>
+
+                    if (empData != null) {
+                        val startTime = empData["StartTime"] as? String
+                        val endTime = empData["EndTime"] as? String
+
+                        when {
+                            // StartTime이 없는 경우
+                            startTime.isNullOrEmpty() -> {
+                                Toast.makeText(
+                                    requireContext(),
+                                    "작업 시작 기록이 없습니다. 먼저 작업을 시작해주세요.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            // EndTime이 이미 있는 경우
+                            !endTime.isNullOrEmpty() -> {
+                                Toast.makeText(
+                                    requireContext(),
+                                    "이미 작업 종료 처리가 완료되었습니다.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            // 정상: StartTime만 있고 EndTime이 없는 경우
+                            else -> {
+                                saveEndTime(currentDate, empNum)
+                            }
+                        }
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "작업 시작 기록이 없습니다.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    Toast.makeText(
+                        requireContext(),
+                        "작업 시작 기록이 없습니다.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "작업 시간 확인에 실패했습니다.", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    // 실제로 EndTime을 Firebase에 저장하는 함수
+    private fun saveEndTime(currentDate: String, empNum: String) {
+        val db = FirebaseFirestore.getInstance()
         val currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 
-        // Firestore에 저장할 데이터
         val data = mapOf(
             empNum to mapOf("EndTime" to currentTime)
         )
 
-        // Firestore 업로드 (merge 옵션으로 다른 사번 데이터 보존)
         db.collection("WorkTime")
             .document(currentDate)
             .set(data, SetOptions.merge())
             .addOnSuccessListener {
                 Toast.makeText(requireContext(), "작업이 정상적으로 종료되었습니다.", Toast.LENGTH_SHORT).show()
-                // 저장 후 실시간으로 UI에 출력하도록 함수 호출
+                // 저장 후 즉시 UI 업데이트
                 loadWorkTimeFromFirestore()
             }
             .addOnFailureListener {
