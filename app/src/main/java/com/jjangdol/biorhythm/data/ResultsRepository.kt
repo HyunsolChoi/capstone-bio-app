@@ -155,20 +155,13 @@ class ResultsRepository @Inject constructor(
 
         val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val myDeptStr = prefs.getString("dept", "") ?: ""
-        Log.d(TAG, "내 부서 문자열: '$myDeptStr'")
+        Log.d(TAG, "내 부서: '$myDeptStr'")
 
-        val myDeptList = when {
-            myDeptStr == "미등록" -> emptyList()
-            myDeptStr.isNotEmpty() -> myDeptStr.split(",").map { it.trim() }
-            else -> emptyList()
-        }
-        Log.d(TAG, "내 부서 리스트: $myDeptList (size=${myDeptList.size})")
-
-        if (myDeptList.isEmpty()) {
-            Log.d(TAG, "부서가 비어있음 - 빈 리스트 반환 후 종료")
+        if (myDeptStr.isEmpty() || myDeptStr == "미등록") {
+            Log.d(TAG, "부서 없음 - 빈 리스트 반환")
             trySend(emptyList())
             awaitClose {
-                Log.d(TAG, "awaitClose 호출 (부서 없음)")
+                Log.d(TAG, "awaitClose (부서 없음)")
             }
             return@callbackFlow
         }
@@ -185,33 +178,27 @@ class ResultsRepository @Inject constructor(
             Log.d(TAG, "--- SnapshotListener 트리거 ---")
 
             if (e != null) {
-                Log.e(TAG, "Firestore 에러 발생", e)
+                Log.e(TAG, "Firestore 에러", e)
                 close(e)
                 return@addSnapshotListener
             }
 
-            if (snap == null) {
-                Log.w(TAG, "Snapshot이 null")
+            if (snap == null || snap.isEmpty) {
+                Log.d(TAG, "데이터 없음")
                 trySend(emptyList())
                 return@addSnapshotListener
             }
 
-            if (snap.isEmpty) {
-                Log.d(TAG, "Snapshot이 비어있음 (문서 없음)")
-                trySend(emptyList())
-                return@addSnapshotListener
-            }
-
-            Log.d(TAG, "Snapshot 문서 개수: ${snap.documents.size}")
+            Log.d(TAG, "문서 개수: ${snap.documents.size}")
 
             val allResults = snap.documents.mapNotNull { ds ->
                 try {
                     val data = ds.data ?: return@mapNotNull null
                     val deptRaw = data["dept"]
                     val dept = when (deptRaw) {
-                        is String -> listOf(deptRaw)
-                        is List<*> -> deptRaw.filterIsInstance<String>()
-                        else -> emptyList()
+                        is String -> deptRaw
+                        is List<*> -> deptRaw.filterIsInstance<String>().joinToString("/")
+                        else -> ""
                     }
 
                     ChecklistResult(
@@ -227,39 +214,27 @@ class ResultsRepository @Inject constructor(
                         tremorScore = (data["tremorScore"] as? Number)?.toInt() ?: 0,
                         safetyLevel = data["safetyLevel"] as? String ?: "",
                         recommendations = (data["recommendations"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        timestamp = (data["timestamp"] as? Number)?.toLong() ?: 0
+                        timestamp = (data["timestamp"] as? Long) ?: 0
                     )
                 } catch (e: Exception) {
-                    Log.e(TAG, "문서 파싱 실패: ${ds.id}", e)
+                    Log.e(TAG, "파싱 실패: ${ds.id}", e)
                     null
                 }
             }
 
-            val filteredResults = mutableListOf<ChecklistResult>()
-            val latch = CountDownLatch(allResults.size)
-
-            allResults.forEachIndexed { _, result ->
-                db.collection("employees").document(result.empNum).get()
-                    .addOnSuccessListener { empDoc ->
-                        val empDept = empDoc.get("dept") as? List<*> ?: emptyList<String>()
-                        val empDeptList = empDept.filterIsInstance<String>()
-                        val isMatch = isSubDept(myDeptList, empDeptList)
-                        if (isMatch) filteredResults.add(result)
-                        latch.countDown()
-                    }
+            val filteredResults = allResults.filter { result ->
+                result.dept.startsWith(myDeptStr)
             }
 
-            GlobalScope.launch(Dispatchers.IO) {
-                latch.await()
-                trySend(filteredResults)
-            }
+            Log.d(TAG, "필터링 결과: ${filteredResults.size}개")
+            trySend(filteredResults)
         }
 
         awaitClose {
+            Log.d(TAG, "리스너 제거")
             sub.remove()
         }
     }
-
 
     /** 특정 날짜의 결과 리스트를 한 번만 가져오기 */
     suspend fun getResultsByDate(date: LocalDate): List<ChecklistResult> {

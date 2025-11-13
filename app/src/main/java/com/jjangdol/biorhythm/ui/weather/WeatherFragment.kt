@@ -499,7 +499,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         functions = Firebase.functions("asia-northeast3")
         fused = LocationServices.getFusedLocationProviderClient(requireContext())
 
-        //유저환영
+        // 유저 환영
         greetUser()
         // 초기 로딩 UI 설정
         setNowSkeleton(true)
@@ -516,10 +516,10 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
         // 관리자 버튼
         binding.tvAdminLink.setOnClickListener {
-            setupAdminLoginDialog()
+            showAdminLoginDialog()
         }
 
-        // 현재 날짜를 TextView로 출력
+        // 현재 날짜 출력
         updateCurrentDate()
 
         // 작업 시작, 종료 시간을 TextView로 출력
@@ -539,49 +539,45 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         loadWorkTimeFromFirestore()
     }
 
-    // 관리자 로그인 Dialog set
-    private fun setupAdminLoginDialog() {
-        binding.tvAdminLink.setOnClickListener {
-            val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-            val empNum = prefs.getString("emp_num", null) ?: return@setOnClickListener  // 현재 로그인한 사번 불러오기
+    // 다이얼로그를 표시하는 함수로 이름 변경 및 리스너 설정 로직 제거
+    private fun showAdminLoginDialog() {
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null) ?: return
 
-            val input = EditText(requireContext()).apply {
-                hint = "비밀번호"
-                inputType = InputType.TYPE_CLASS_NUMBER
-                keyListener = DigitsKeyListener.getInstance("0123456789")
-            }
-
-            // 다이얼로그 기본 제목 패딩과 맞추기 위해 컨테이너로 감쌈
-            val container = FrameLayout(requireContext()).apply {
-                val padding = (20 * resources.displayMetrics.density).toInt() // dp → px 변환
-                setPadding(padding, 0, padding, 0)
-                addView(input)
-            }
-
-            val dialog = AlertDialog.Builder(requireContext())
-                .setTitle("관리자 비밀번호 입력")
-                .setView(container)
-                .setPositiveButton("확인", null)
-                .setNegativeButton("취소", null)
-                .create()
-
-            dialog.setOnShowListener {
-                val okBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                okBtn.setOnClickListener {
-                    val password = input.text.toString().trim()
-                    if (password.isEmpty()) {
-                        Toast.makeText(requireContext(), "비밀번호를 입력하세요.", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-
-                    verifyAdminLogin(empNum, password, dialog)
-                }
-            }
-
-            dialog.show()
+        val input = EditText(requireContext()).apply {
+            hint = "비밀번호"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            keyListener = DigitsKeyListener.getInstance("0123456789")
         }
-    }
 
+        val container = FrameLayout(requireContext()).apply {
+            val padding = (20 * resources.displayMetrics.density).toInt()
+            setPadding(padding, 0, padding, 0)
+            addView(input)
+        }
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("관리자 비밀번호 입력")
+            .setView(container)
+            .setPositiveButton("확인", null)
+            .setNegativeButton("취소", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val okBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            okBtn.setOnClickListener {
+                val password = input.text.toString().trim()
+                if (password.isEmpty()) {
+                    Toast.makeText(requireContext(), "비밀번호를 입력하세요.", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                verifyAdminLogin(empNum, password, dialog)
+            }
+        }
+
+        dialog.show()
+    }
 
     // 관리자 로그인
     private fun verifyAdminLogin(empNum: String, password: String, dialog: Dialog) {

@@ -1,6 +1,5 @@
 package com.jjangdol.biorhythm.ui.measurement
 
-import android.Manifest
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -14,16 +13,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.navigation.fragment.navArgs
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentTremorMeasurementBinding
 import com.jjangdol.biorhythm.model.MeasurementResult
 import com.jjangdol.biorhythm.model.MeasurementState
 import com.jjangdol.biorhythm.model.MeasurementType
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -35,26 +30,6 @@ data class TremorThresholds(
     val normalMaxTremor: Float,
     val normalStdDev: Float
 )
-
-// 연령대 구분 enum
-enum class AgeGroup {
-    YOUNG_ADULT,    // 20-39
-    MIDDLE_AGED,    // 40-59
-    ELDERLY         // 60+
-}
-
-// 사용자 프로필
-data class UserProfile(
-    val age: Int?,
-    val workType: String?
-) {
-    val ageGroup: AgeGroup
-        get() = when (age) {
-            in 20..39 -> AgeGroup.YOUNG_ADULT
-            in 40..59 -> AgeGroup.MIDDLE_AGED
-            else -> AgeGroup.ELDERLY
-        }
-}
 
 @AndroidEntryPoint
 class TremorMeasurementFragment : BaseMeasurementFragment(),
@@ -84,9 +59,6 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
     private val SAMPLE_RATE = 50 // Hz
     private val MIN_MEASUREMENT_TIME = 9000L // 최소 측정 시간
 
-    // 사용자 프로필 추가
-    private var userProfile: UserProfile? = null
-
     // 측정 결과 저장 변수
     private var latestScore: Float = 0f
     private var latestRawData: String? = null
@@ -108,33 +80,8 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
 
         sessionId = arguments?.getString("sessionId") ?: ""
 
-        // 사용자 프로필 초기화
-        initializeUserProfile()
-
         setupSensor()
         setupUI()
-    }
-
-    private fun initializeUserProfile() {
-        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val name = prefs.getString("user_name", null)
-        val dept = prefs.getString("user_dept", null)
-        val dob = prefs.getString("dob", null)
-
-        if (name != null && dept != null && dob != null) {
-            val age = calculateAgeFromDob(dob)
-            userProfile = UserProfile(age = age, workType = dept)
-        }
-    }
-
-    private fun calculateAgeFromDob(dobString: String): Int {
-        return try {
-            val dob = LocalDate.parse(dobString, DateTimeFormatter.ISO_DATE)
-            val today = LocalDate.now()
-            today.year - dob.year - if (today.dayOfYear < dob.dayOfYear) 1 else 0
-        } catch (e: Exception) {
-            30 // 기본값
-        }
     }
 
     private fun setupSensor() {
@@ -353,16 +300,6 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
         }
     }
 
-    private fun getAdaptiveThresholds(userProfile: UserProfile?): TremorThresholds {
-        return when (userProfile?.ageGroup) {
-            AgeGroup.YOUNG_ADULT -> TremorThresholds(0.3f, 1.5f, 0.15f)
-            AgeGroup.MIDDLE_AGED -> TremorThresholds(0.5f, 2.0f, 0.25f)
-            AgeGroup.ELDERLY -> TremorThresholds(0.7f, 2.5f, 0.35f)
-            else -> TremorThresholds(0.5f, 2.0f, 0.25f) // 기본값
-        }
-    }
-
-
 
     private fun calculateAdaptiveTremorScore(
         avgTremor: Double,
@@ -370,7 +307,8 @@ class TremorMeasurementFragment : BaseMeasurementFragment(),
         normalizedStdDev: Float,
         frequency: Float
     ): Float {
-        val thresholds = getAdaptiveThresholds(userProfile)
+        /** 생년월일 정보 삭제 및 AgeGroup 삭제로 인해 기본 값만을 사용 */
+        val thresholds = TremorThresholds(0.5f, 2.0f, 0.25f) // 기본값
 
         // 평균 떨림 점수 (개선된 곡선)
         val avgScore = when {

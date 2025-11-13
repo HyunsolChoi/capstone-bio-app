@@ -37,7 +37,7 @@ data class SafetyCheckResult(
     val userId: String = "",
     val empNum: String = "",
     val name: String = "",
-    val dept: List<String> = emptyList(),
+    val dept: String = "",
     val checklistScore: Int = 0,
     val tremorScore: Float = 0f,
     val pupilScore: Float = 0f,

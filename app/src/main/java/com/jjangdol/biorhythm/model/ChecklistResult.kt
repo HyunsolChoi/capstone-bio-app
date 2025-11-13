@@ -7,7 +7,7 @@ data class ChecklistResult(
     val userId: String = "",
     val empNum: String = "",
     val name: String = "",
-    val dept: List<String> = emptyList(),
+    val dept: String = "",
     val date: String = "",
 
     // 점수 관련
