@@ -63,7 +63,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     { result ->
         val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
                 || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-                //FINE:정밀위치,COARSE:지리상 대략적 위치
+        //FINE:정밀위치,COARSE:지리상 대략적 위치
 
         if (granted)
         {
@@ -382,7 +382,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             binding.tvRain.text = "강수 --"
         } else {
             binding.ivNowIcon.imageAlpha = 255
-             binding.tvNowTemp.text = "--°"
+            binding.tvNowTemp.text = "--°"
             binding.tvNowDesc.text = "불러오는 중…"
             binding.tvHumidity.text = "습도 --%"
             binding.tvRain.text = "강수 --"

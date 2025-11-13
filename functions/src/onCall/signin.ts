@@ -26,22 +26,24 @@ export const loginChecker = onCall({ region: "asia-northeast3" }, async (request
     }
 
     // 부서 정보 읽어오기 (배열 형태)
-    const depts = doc.get("dept");
-    if (!Array.isArray(depts) || depts.length === 0) {
-      return {
+    const dept = doc.get("dept");
+    if (!dept || typeof dept !== "string") {
+        return {
+            status: "success",
+            empNum,
+            name: savedName,
+            departments: "미등록",  // dept가 없거나 null일 경우
+        };
+    }
+
+    // dept가 문자열이면 그대로 반환
+    return {
         status: "success",
         empNum,
         name: savedName,
-        departments: "미등록",
-      };
-    }
-
-    return {
-      status: "success",
-      empNum,
-      name: savedName,
-       departments: depts.slice(0, 4), // 부서 정보는 최대 4개까지만 가지므로
+        departments: dept, // 예: 본부/지사A/팀1
     };
+
   } catch (error: any) {
     console.error("loginChecker 에러:", error);
     if (error instanceof HttpsError) throw error;
