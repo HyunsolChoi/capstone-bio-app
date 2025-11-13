@@ -155,6 +155,10 @@ dependencies {
     /* --- image:Glide--- */
     implementation("com.github.bumptech.glide:glide:4.16.0")
     kapt ("com.github.bumptech.glide:compiler:4.16.0")
+
+    // build.gradle.kts (Kotlin DSL)
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0-alpha01")
+
 }
 
 kapt { correctErrorTypes = true }

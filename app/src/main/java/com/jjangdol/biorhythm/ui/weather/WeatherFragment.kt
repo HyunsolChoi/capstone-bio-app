@@ -59,34 +59,43 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
 
     /** 사용자의 위치 권한 요청 → 응답에 따른 처리 */
-    private val requestLocationPerms = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions())
-    { result ->
-        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        //FINE:정밀위치,COARSE:지리상 대략적 위치
+    private val requestLocationPerms =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions())
+        { result ->
+            val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
+                    || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            //FINE:정밀위치,COARSE:지리상 대략적 위치
 
-        if (granted)
-        {
-            showLoading(true)
-            fetchLastLocationAndUpdateUI()
-            showLoading(false)
+            if (granted) {
+                showLoading(true)
+                fetchLastLocationAndUpdateUI()
+                showLoading(false)
+            } else {
+                Toast.makeText(requireContext(), "위치 권한이 없어 기본 위치를 표시합니다.", Toast.LENGTH_SHORT)
+                    .show()
+            }
         }
-        else
-        { Toast.makeText(requireContext(), "위치 권한이 없어 기본 위치를 표시합니다.", Toast.LENGTH_SHORT).show() }
-    }
 
     /** 사용자의 위치 권한이 확인되면 → 허용 시 위치 조회 */
 
     @SuppressLint("MissingPermission")
     private fun updateLocationName() {
-        val fine = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-        val coarse = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION)
+        val fine = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+        val coarse = ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
 
         if (fine != PackageManager.PERMISSION_GRANTED && coarse != PackageManager.PERMISSION_GRANTED) {
-            requestLocationPerms.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
+            requestLocationPerms.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
             return
         }
 
@@ -129,7 +138,11 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                         Log.e("WeatherDebug", "updateLocationName 내 코루틴 오류", e)
                         // binding이 있을 때만 Toast 표시
                         if (_binding != null) {
-                            Toast.makeText(requireContext(), "날씨 정보를 불러올 수 없습니다", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                requireContext(),
+                                "날씨 정보를 불러올 수 없습니다",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     } finally {
                         // View가 여전히 활성 상태인지 확인
@@ -160,6 +173,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         val xo: Double = 43.0,        // 기준점 X좌표
         val yo: Double = 136.0        // 기준점 Y좌표
     )
+
     /** 위도 경도 -> nx ny 변환 함수 */
     fun convertToGrid(lat: Double, lon: Double): Pair<Int, Int> {
         val map = LamcParameter()
@@ -245,7 +259,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             }
         } catch (e: Exception) {
             Log.e("WeatherDebug", "getWeatherData 호출 실패", e)
-            Toast.makeText(requireContext(), "날씨 정보를 가져오는 중 오류: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(requireContext(), "날씨 정보를 가져오는 중 오류: ${e.message}", Toast.LENGTH_LONG)
+                .show()
         }
     }
 
@@ -258,6 +273,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 "4" -> "흐림" to R.drawable.ic_weather_cloudy
                 else -> "알 수 없음" to R.drawable.ic_weather_sunny
             }
+
             "1" -> "비" to R.drawable.ic_weather_rainy
             "2" -> "비/눈" to R.drawable.ic_weather_rain_and_snow
             "3" -> "눈" to R.drawable.ic_weather_snowy
@@ -271,62 +287,61 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
     /** 기기의 최근 위치가 확인이 안 된다면, 대체(백업) 경로 가져오기 */
     @SuppressLint("MissingPermission")
-    private fun fetchCurrentLocationFallback()
-    {
+    private fun fetchCurrentLocationFallback() {
         currentLocCts?.cancel() //이전 위치 요청을 관리하는 취소 토큰
         val cts = CancellationTokenSource() //이번에 할 요청을 관리할 토큰
 
         //현재 위치 요청
         fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token)
             .addOnSuccessListener { loc ->
-                if (loc != null)
-                {
+                if (loc != null) {
                     updateAddressFrom(loc.latitude, loc.longitude)
-                }
-                else
-                {
-                    Toast.makeText(requireContext(), "현재 위치를 가져올 수 없습니다.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "현재 위치를 가져올 수 없습니다.", Toast.LENGTH_SHORT)
+                        .show()
                 }
             }
-            .addOnFailureListener { Toast.makeText(requireContext(), "현재 위치 요청 실패", Toast.LENGTH_SHORT).show() }
+            .addOnFailureListener {
+                Toast.makeText(
+                    requireContext(),
+                    "현재 위치 요청 실패",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
     }
 
     /** 마지막으로 저장된 기기의 위치로 주소명 갱신 */
     @SuppressLint("MissingPermission")
-    private fun fetchLastLocationAndUpdateUI()
-    {
+    private fun fetchLastLocationAndUpdateUI() {
         fused.lastLocation
             .addOnSuccessListener { loc ->
-                if (loc != null)
-                {
+                if (loc != null) {
                     updateAddressFrom(loc.latitude, loc.longitude)
-                }
-                else
-                {
-                    Toast.makeText(requireContext(), "현재 위치를 가져올 수 없습니다.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "현재 위치를 가져올 수 없습니다.", Toast.LENGTH_SHORT)
+                        .show()
                 }
             }
-            .addOnFailureListener{ Toast.makeText(requireContext(), "위치 조회 실패", Toast.LENGTH_SHORT).show() }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "위치 조회 실패", Toast.LENGTH_SHORT).show()
+            }
     }
 
     /** 위도,경도 값을 주소명으로 변환 */
-    private fun updateAddressFrom(lat: Double, lon: Double)
-    {
-        viewLifecycleOwner.lifecycleScope.launch{
+    private fun updateAddressFrom(lat: Double, lon: Double) {
+        viewLifecycleOwner.lifecycleScope.launch {
             val name = withContext(Dispatchers.IO)
             {
                 reverseGeocodeToShortName(lat, lon)
             }
             val display = name ?: "(${lat.f(4)}, ${lon.f(4)})"
-            binding.tvLocation.text  = display
+            binding.tvLocation.text = display
         }
     }
 
     /** 위경도를 "서울특별시 종로구 00동" 식으로 변환 (없으면 null) */
-    private fun reverseGeocodeToShortName(lat: Double, lon: Double): String?
-    {
-        return try
-        {
+    private fun reverseGeocodeToShortName(lat: Double, lon: Double): String? {
+        return try {
             if (!Geocoder.isPresent()) return null //Geocoder 사용 가능한지 확인
 
             val g = Geocoder(requireContext(), Locale.KOREA)
@@ -352,24 +367,55 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             when {
                 !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() && !detailarea.isNullOrBlank() ->
                     "$wiedarea $narrowarea $detailarea"
+
                 !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() ->
                     "$wiedarea $narrowarea"
+
                 !wiedarea.isNullOrBlank() && !detailarea.isNullOrBlank() -> // 구 정보가 없을 경우 대비
                     "$wiedarea $detailarea"
+
                 !wiedarea.isNullOrBlank() -> wiedarea
                 else -> null // 모든 정보가 없을 경우
             }
+        } catch (_: Exception) {
+            null
         }
-        catch (_: Exception) { null }
+    }
+
+    private fun setupSwipeRefresh() {
+        binding.swipeRefreshLayout.setColorSchemeResources(
+            android.R.color.holo_blue_bright,
+            android.R.color.holo_green_light,
+            android.R.color.holo_orange_light,
+            android.R.color.holo_red_light
+        )
+        // todo: 이 색상 코드를 삽입해야 로그인 이후에 weatherFragment를 입장한 후에 앱이 강제종료가 안 되는데, 이유는 모르겠음
+
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            // 새로고침 시 실행할 작업
+            updateLocationName()
+            updateCurrentDate()
+            loadWorkTimeFromFirestore()
+
+            // 새로고침 완료 후 애니메이션 종료
+            binding.swipeRefreshLayout.postDelayed({
+                binding.swipeRefreshLayout.isRefreshing = false
+            }, 1000)
+        }
     }
 
     /** 새로고침 로딩 */
     private fun showLoading(show: Boolean) {
-        // binding이 null이 아닐 때만 실행
         _binding?.let { binding ->
-            binding.progress.visibility = if (show) View.VISIBLE else View.GONE
-            binding.btnRefresh.isEnabled = !show
-            if (show) setNowSkeleton(true)
+            if (show) {
+                if (!binding.swipeRefreshLayout.isRefreshing) {
+                    binding.progress.visibility = View.VISIBLE
+                }
+                setNowSkeleton(true)
+            } else {
+                binding.progress.visibility = View.GONE
+                binding.swipeRefreshLayout.isRefreshing = false
+            }
         }
     }
 
@@ -405,41 +451,34 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 (0.0022 * Tw * Tw) + (0.00278 * Tw * tempC) + 3.0
     }
 
-    override fun onDestroyView()
-    {
+    override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 
     /** 환영문구 */
-    private fun greetUser()
-    {
+    private fun greetUser() {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val name = prefs.getString("user_name", null)
 
-        if (!name.isNullOrBlank())
-        {
+        if (!name.isNullOrBlank()) {
             binding.tvUserName.text = name
             binding.tvWelcome.text = "님 환영합니다"
-        }
-        else
-        {
+        } else {
             binding.tvUserName.text = ""
             binding.tvWelcome.text = "환영합니다"
         }
     }
 
     /** 지침사항 */
-    private fun bindGuidelines(condition: String)
-    {
+    private fun bindGuidelines(condition: String) {
         // 제목/부제
         binding.tvGuidelineTitle.text = "안전 지침"
 
-        val (subtitleRes, arrayRes) = when
-        {
+        val (subtitleRes, arrayRes) = when {
             condition.contains("맑음") -> R.string.guideline_sunny_subtitle to R.array.guidelines_sunny
-            condition.contains("비") -> R.string.guideline_rain_subtitle  to R.array.guidelines_rain
-            condition.contains("눈") -> R.string.guideline_snow_subtitle  to R.array.guidelines_snow
+            condition.contains("비") -> R.string.guideline_rain_subtitle to R.array.guidelines_rain
+            condition.contains("눈") -> R.string.guideline_snow_subtitle to R.array.guidelines_snow
             else -> R.string.guideline_title to R.array.guidelines_default
         }
         binding.tvGuidelineSubtitle.text = getString(subtitleRes)
@@ -454,7 +493,12 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             val tv = android.widget.TextView(requireContext()).apply {
                 text = "$line"
                 setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
-                setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_primary))
+                setTextColor(
+                    androidx.core.content.ContextCompat.getColor(
+                        requireContext(),
+                        R.color.text_primary
+                    )
+                )
                 setPadding(0, pad / 2, 0, pad / 2)
             }
             binding.guidelineContainer.addView(tv)
@@ -467,7 +511,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         val empNum = prefs.getString("emp_num", null)
 
         if (empNum.isNullOrEmpty()) {
-            binding.tvAdminLink.visibility = View.GONE
+            binding.btnAdminLink.visibility = View.GONE
             return
         }
 
@@ -478,44 +522,39 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
                 lifecycleScope.launch {
                     if (_binding == null) return@launch
-                    binding.tvAdminLink.visibility =
+                    binding.btnAdminLink.visibility =
                         if (doc.exists() && doc.contains("Password")) View.VISIBLE else View.GONE
                 }
             }
             .addOnFailureListener { e ->
                 if (!isAdded || _binding == null) return@addOnFailureListener
-                binding.tvAdminLink.visibility = View.GONE
+                binding.btnAdminLink.visibility = View.GONE
             }
     }
 
     /** 소수점 포맷 */
     private fun Double.f(d: Int) = String.format(Locale.US, "%.${d}f", this)
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?)
-    {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentWeatherBinding.bind(view)
 
         functions = Firebase.functions("asia-northeast3")
         fused = LocationServices.getFusedLocationProviderClient(requireContext())
 
-        // 유저 환영
+        setupSwipeRefresh()
+        //유저환영
         greetUser()
         // 초기 로딩 UI 설정
         setNowSkeleton(true)
         // 현재 위치명 시도
         updateLocationName()
 
-        // 새로고침
-        binding.btnRefresh.setOnClickListener {
-            updateLocationName()
-        }
-
         // 관리자 여부 확인 후 버튼 표시/숨김
         checkAdminVisibility()
 
         // 관리자 버튼
-        binding.tvAdminLink.setOnClickListener {
+        binding.btnAdminLink.setOnClickListener {
             showAdminLoginDialog()
         }
 
@@ -563,7 +602,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             .setNegativeButton("취소", null)
             .create()
 
-        dialog.setOnShowListener {
+        dialog.setOnShowListener{
             val okBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             okBtn.setOnClickListener {
                 val password = input.text.toString().trim()
@@ -571,13 +610,12 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                     Toast.makeText(requireContext(), "비밀번호를 입력하세요.", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
-
                 verifyAdminLogin(empNum, password, dialog)
             }
         }
-
-        dialog.show()
     }
+
+
 
     // 관리자 로그인
     private fun verifyAdminLogin(empNum: String, password: String, dialog: Dialog) {
@@ -803,5 +841,4 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 Toast.makeText(requireContext(), "작업 종료 처리에 실패하였습니다.", Toast.LENGTH_SHORT).show()
             }
     }
-
 }
