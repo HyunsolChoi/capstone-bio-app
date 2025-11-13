@@ -613,6 +613,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 verifyAdminLogin(empNum, password, dialog)
             }
         }
+        dialog.show()
     }
 
 
