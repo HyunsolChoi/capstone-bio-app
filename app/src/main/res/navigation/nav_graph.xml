@@ -50,6 +50,13 @@
         <action
             android:id="@+id/action_main_to_newAdmin"
             app:destination="@id/newAdminFragment" />
+        <action
+            android:id="@+id/action_main_to_notificationDetail"
+            app:destination="@id/notificationDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
         <!-- 기존 관리자 액션 제거됨 -->
     </fragment>
 
@@ -210,6 +217,27 @@
         android:name="com.jjangdol.biorhythm.ui.admin.NotificationManagementFragment"
         android:label="알림 관리"
         tools:layout="@layout/fragment_notification_management" />
+
+    <fragment
+        android:id="@+id/notificationFragment"
+        android:name="com.jjangdol.biorhythm.ui.main.NotificationFragment"
+        android:label="알림"
+        tools:layout="@layout/fragment_notification">
+
+        <action
+            android:id="@+id/action_notificationFragment_to_notificationDetailFragment"
+            app:destination="@id/notificationDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/notificationDetailFragment"
+        android:name="com.jjangdol.biorhythm.ui.main.NotificationDetailFragment"
+        android:label="알림 상세"
+        tools:layout="@layout/fragment_notification_detail" />
 
     <fragment
         android:id="@+id/adminChecklistManagementFragment"

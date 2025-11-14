@@ -4,14 +4,17 @@ package com.jjangdol.biorhythm.data.model
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 
+@Parcelize
 data class Notification(
     @DocumentId
     val id: String = "",
     val title: String = "",
     val content: String = "",
     val priority: NotificationPriority = NotificationPriority.NORMAL,
-    val active: Boolean = true,  // isActive -> active 변경
+    val active: Boolean = true,
     val auth: Int = 2,
     val targetDept: List<String> = emptyList(),
     @ServerTimestamp
@@ -21,14 +24,14 @@ data class Notification(
     val createdBy: String = "admin",
     val attachmentUrl: List<String> = emptyList(),
     val readBy: List<String>? = null
-) {
+) : Parcelable {
     // Firestore용 빈 생성자
     constructor() : this(
         id = "",
         title = "",
         content = "",
         priority = NotificationPriority.NORMAL,
-        active = true,  // isActive -> active 변경
+        active = true,
         createdAt = null,
         updatedAt = null,
         createdBy = "admin",
@@ -36,7 +39,8 @@ data class Notification(
     )
 }
 
-enum class NotificationPriority(val displayName: String, val colorRes: String) {
+@Parcelize
+enum class NotificationPriority(val displayName: String, val colorRes: String) : Parcelable {
     HIGH("긴급", "#F44336"),      // Red
     NORMAL("일반", "#2196F3"),    // Blue
     LOW("안내", "#4CAF50")        // Green

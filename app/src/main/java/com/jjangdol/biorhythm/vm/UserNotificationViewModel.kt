@@ -62,13 +62,17 @@ class UserNotificationViewModel @Inject constructor(
             else -> null
         }
 
-        val dept = (doc.get("dept") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
+        val deptString = doc.getString("dept") ?: ""
         val cumulative = mutableListOf<String>()
-        var acc = ""
 
-        for (p in dept) {
-            acc = if (acc.isEmpty()) p else "$acc/$p"
-            cumulative += acc
+        if (deptString.isNotBlank()) {
+            val parts = deptString.split("/")
+            var acc = ""
+
+            for (p in parts) {
+                acc = if (acc.isEmpty()) p else "$acc/$p"
+                cumulative += acc
+            }
         }
 
         userAuth to cumulative
@@ -91,13 +95,9 @@ class UserNotificationViewModel @Inject constructor(
     private val visibleNotifications: StateFlow<List<Notification>> =
         flow {
             val acl = loadUserAcl() ?: run { emit(emptyList()); return@flow }
-
             val (userAuth, userDeptCumulative) = acl
-
             val keys = (userDeptCumulative + DEPT_ALL).distinct()
-
-            val q = db.collection("notifications")
-                .whereArrayContainsAny("targetDept", keys)
+            val q = db.collection("notifications").whereArrayContainsAny("targetDept", keys)
 
             fun Query.asFlow(tag: String) = callbackFlow<List<Notification>> {
                 val reg = addSnapshotListener { snap, e ->

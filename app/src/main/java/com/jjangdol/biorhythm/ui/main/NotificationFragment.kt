@@ -7,12 +7,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.webkit.MimeTypeMap
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentNotificationBinding
@@ -49,7 +49,7 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
         notificationAdapter = UserNotificationAdapter(
             onItemClick = { notification ->
                 viewModel.markAsRead(notification.id)
-                showNotificationDetail(notification)
+                navigateToDetail(notification)
             },
             onMoreClick = { notification, isExpanded ->
                 // 확장/축소 처리는 어댑터에서 자동 처리
@@ -273,146 +273,25 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
         }
 
 
-    private fun showNotificationDetail(notification: Notification) {
-        val displayMetrics = resources.displayMetrics
-        val maxHeight = (displayMetrics.heightPixels * 0.6).toInt()
-        val inflater = layoutInflater
-        val view = inflater.inflate(R.layout.dialog_notification_detail, null)
-        val tvContent = view.findViewById<TextView>(R.id.tvContent)
-        val chipGroup =
-            view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupAttachments)
+    private fun navigateToDetail(notification: Notification) {
+        try {
+            val bundle = Bundle().apply {
+                putParcelable("notification", notification)
+            }
 
-        val container = android.widget.LinearLayout(requireContext()).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(50, 20, 50, 20)
-        }
+            // MainActivity의 NavController를 찾아서 사용
+            val mainNavController = requireActivity()
+                .supportFragmentManager
+                .findFragmentById(R.id.navHostFragment)
+                ?.findNavController()
 
-        val scrollView = android.widget.ScrollView(requireContext()).apply {
-            layoutParams = android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                maxHeight
+            mainNavController?.navigate(
+                R.id.action_main_to_notificationDetail,
+                bundle
             )
-            isScrollbarFadingEnabled = false
-            isVerticalScrollBarEnabled = true
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "알림 상세를 열 수 없습니다", Toast.LENGTH_SHORT).show()
         }
-        scrollView.addView(container)
-
-        // 본문
-        tvContent.text = notification.content
-
-        // 첨부 URL 리스트
-        val urls: List<String> = notification.attachmentUrl ?: emptyList()
-        if (urls.isNotEmpty()) {
-            chipGroup.visibility = View.VISIBLE
-            chipGroup.removeAllViews()
-
-            urls.forEachIndexed { idx, url ->
-                val chip = com.google.android.material.chip.Chip(requireContext()).apply {
-                    text = buildString {
-                        append("첨부 ")
-                        append(idx + 1)
-                        val name = guessFileName(url)
-                        if (name.isNotBlank() && name != "attachment") append("  ($name)")
-                    }
-                    isClickable = true
-                    isCheckable = false
-
-                    setOnClickListener { openAttachmentUrl(url) }
-                }
-                chipGroup.addView(chip)
-            }
-        } else {
-            chipGroup.visibility = View.GONE
-        }
-
-        container.addView(view)
-
-        //미리보기
-        val previewTitle = TextView(requireContext()).apply {
-            text = "미리보기"
-            setPadding(16.dp(), 12.dp(), 16.dp(), 4.dp())
-            textSize = 14f
-            setTextColor(requireContext().getColor(R.color.black))
-        }
-        val scroll = android.widget.HorizontalScrollView(requireContext()).apply {
-            isHorizontalScrollBarEnabled = false
-            setPadding(8.dp(), 0, 8.dp(), 8.dp())
-        }
-        val strip = android.widget.LinearLayout(requireContext()).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-        }
-        scroll.addView(strip)
-        container.addView(previewTitle)
-        container.addView(scroll)
-
-        fun makeThumbSlot(): android.widget.FrameLayout =
-            android.widget.FrameLayout(requireContext()).apply {
-                val size = 96.dp()
-                val lp = android.view.ViewGroup.MarginLayoutParams(size, size)
-                    .apply { rightMargin = 10.dp() }
-                layoutParams = lp
-                clipToOutline = true
-                // 썸네일 이미지
-                addView(android.widget.ImageView(requireContext()).apply {
-                    id = View.generateViewId()
-                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                    layoutParams = android.widget.FrameLayout.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                })
-                // 타입 배지
-                addView(android.widget.ImageView(requireContext()).apply {
-                    tag = "badge"
-                    layoutParams = android.widget.FrameLayout.LayoutParams(24.dp(), 24.dp()).apply {
-                        gravity = android.view.Gravity.TOP or android.view.Gravity.END
-                        marginEnd = 6.dp(); topMargin = 6.dp()
-                    }
-                })
-            }
-
-        urls.forEach { url ->
-            val slot = makeThumbSlot()
-            val image = slot.getChildAt(0) as android.widget.ImageView
-            val badge = slot.findViewWithTag<android.widget.ImageView>("badge")
-
-            slot.setOnClickListener { openAttachmentUrl(url) }
-
-            when {
-                isImageUrl(url) -> {
-                    // Glide 권장(있으면 사용). 없으면 placeholder만 표시.
-                    try {
-                        com.bumptech.glide.Glide.with(this)
-                            .load(url)
-                            .thumbnail(0.25f)
-                            .into(image)
-                    } catch (_: Throwable) {
-                    }
-                    badge.setImageDrawable(null)
-                }
-                isPdfUrl(url) -> {
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        val file = downloadToCacheHttps(url, guessFileName(url))
-                        val bmp = file?.let { renderPdf(it, 320, 320) }
-                        if (bmp != null) image.setImageBitmap(bmp)
-                    }
-                }
-                else -> {
-                    chipGroup.visibility = View.GONE
-                }
-            }
-            strip.addView(slot)
-        }
-
-        // 알림 다이얼로그
-        AlertDialog.Builder(requireContext())
-            .setTitle("${notification.priority.displayName} 알림")
-            .setView(scrollView)
-            .setPositiveButton("확인", null)
-            .setNeutralButton("공유") { _, _ ->
-                shareNotification(notification)
-            }
-            .show()
     }
 
     private fun shareNotification(notification: Notification) {

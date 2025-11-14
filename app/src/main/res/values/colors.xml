@@ -27,7 +27,13 @@
     <color name="safety_caution">#FF9800</color>
     <color name="safety_danger">#F44336</color>
 
+    <!-- 우선순위 색상 -->
+    <color name="priority_high">#F44336</color>
+    <color name="priority_normal">#2196F3</color>
+    <color name="priority_low">#4CAF50</color>
+
     <!-- 기타 색상 -->
+    <color name="background">#FFFFFF</color>
     <color name="divider_color">#E0E0E0</color>
     <color name="error_color">#F44336</color>
     <color name="success_color">#4CAF50</color>

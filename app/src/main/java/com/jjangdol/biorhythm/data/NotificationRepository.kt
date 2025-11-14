@@ -67,7 +67,7 @@ class NotificationRepository @Inject constructor() {
                 title = title,
                 content = content,
                 priority = priority,
-                active = true,  // isActive -> active 변경
+                active = true,
                 createdBy = "admin",
                 attachmentUrl = attachmentUrl,
                 auth = auth,
@@ -185,13 +185,11 @@ class NotificationRepository @Inject constructor() {
             // targetDept 필터링
             val targetEmployees = if (targetDept != null && !targetDept.contains("전체")) {
                 val filtered = allEmployees.documents.filter { doc ->
-                    val empDeptArray = doc.get("dept") as? List<String> ?: emptyList()
+                    val empDeptString = doc.getString("dept") ?: ""
 
                     val isMatch = targetDept.any { target ->
-                        empDeptArray.any { empDept ->
-                            empDept.startsWith(target, ignoreCase = true) ||
-                                    target.startsWith(empDept, ignoreCase = true)
-                        }
+                        empDeptString.contains(target, ignoreCase = true) ||
+                                target.contains(empDeptString, ignoreCase = true)
                     }
                     isMatch
                 }
@@ -210,9 +208,9 @@ class NotificationRepository @Inject constructor() {
                 .map { doc ->
                     val name = doc.getString("Name") ?: "이름 없음"
                     val empNum = doc.id
-                    val deptArray = doc.get("dept") as? List<String> ?: emptyList()
-                    val deptStr = deptArray.lastOrNull() ?: "부서 미지정"
-                    "$name $empNum ($deptStr)"
+                    val deptString = doc.getString("dept") ?: "부서 미지정"
+                    val deptDisplay = deptString.substringAfterLast("/").ifBlank { deptString }
+                    "$name $empNum ($deptDisplay)"
                 }
             Result.success(unreadUsers)
 
