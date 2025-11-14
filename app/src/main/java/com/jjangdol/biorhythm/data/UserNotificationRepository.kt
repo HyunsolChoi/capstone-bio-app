@@ -24,8 +24,8 @@ class UserNotificationRepository @Inject constructor(
     private val userRepository: UserRepository
 ) {
 
-    private val firestore: FirebaseFirestore = Firebase.firestore
-    private val userNotificationsCollection = firestore.collection("userNotifications")
+    private val db: FirebaseFirestore = Firebase.firestore
+    private val userNotificationsCollection = db.collection("userNotifications")
 
     // 현재 사용자 ID (UserRepository를 통해 일관된 방식으로 생성)
     private fun getCurrentUserId(): String? {
@@ -81,11 +81,11 @@ class UserNotificationRepository @Inject constructor(
         return try {
             val userId = getCurrentUserId() ?: return Result.failure(Exception("사용자 정보를 찾을 수 없습니다"))
             val docRef = userNotificationsCollection.document(userId)
-            val notifDocRef = firestore.collection("notifications").document(notificationId)
+            val notifDocRef = db.collection("notifications").document(notificationId)
             val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
             val empNum = prefs.getString("emp_num", "") ?: ""
 
-            firestore.runTransaction { transaction ->
+            db.runTransaction { transaction ->
                 val snapshot = transaction.get(docRef)
                 val readList = (snapshot.get("readNotifications") as? List<String>)?.toMutableList()
                     ?: mutableListOf()
@@ -117,7 +117,7 @@ class UserNotificationRepository @Inject constructor(
             val empNum = prefs.getString("emp_num", "") ?: ""
 
             // 모든 활성 알림 ID 가져오기
-            val allNotifications = firestore.collection("notifications")
+            val allNotifications = db.collection("notifications")
                 .whereEqualTo("active", true)
                 .get()
                 .await()
@@ -150,7 +150,7 @@ class UserNotificationRepository @Inject constructor(
             val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
             val empNum = prefs.getString("emp_num", "") ?: ""
 
-            firestore.runTransaction { transaction ->
+            db.runTransaction { transaction ->
                 val snapshot = transaction.get(docRef)
                 val readList = (snapshot.get("readNotifications") as? List<String>)?.toMutableSet()
                     ?: mutableSetOf()
@@ -163,7 +163,7 @@ class UserNotificationRepository @Inject constructor(
             }.await()
 
             notificationIds.forEach { notificationId ->
-                firestore.collection("notifications")
+                db.collection("notifications")
                     .document(notificationId)
                     .update("readBy", com.google.firebase.firestore.FieldValue.arrayUnion(empNum))
                     .await()

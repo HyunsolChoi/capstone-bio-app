@@ -83,14 +83,17 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         setupClickListeners()
         observeViewModel()
 
+        val currentUserEmpNum = getUserEmpNum()
+        if (currentUserEmpNum != null) {
+            viewModel.loadCurrentUserDepartment(currentUserEmpNum)
+        }
+
         val db = FirebaseFirestore.getInstance()
         val collectionRef = db.collection("Department")
 
         collectionRef.get()
             .addOnSuccessListener { querySnapshot ->
                 val documentIds = querySnapshot.documents.map { it.id }
-                Log.d("Firestore", "Department 문서 ID 목록: $documentIds")
-                Log.d("Firestore", "문서 개수: ${querySnapshot.size()}")
             }
             .addOnFailureListener { e ->
                 Log.e("Firestore", "Department 문서 조회 실패", e)
@@ -291,12 +294,12 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         viewLifecycleOwner.lifecycleScope.launch {
             // 작성자 auth 가져오기
             val senderAuth = try {
-                val empDocId = getEmployeeIdFromPrefs()
-                if (empDocId.isNullOrBlank()) {
+                val empNum = getEmployeeIdFromPrefs()
+                if (empNum.isNullOrBlank()) {
                     Toast.makeText(ctx, "사번 정보를 찾을 수 없습니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
                     null
                 } else {
-                    val emp = db.collection("employees").document(empDocId).get().await()
+                    val emp = db.collection("employees").document(empNum).get().await()
                     val raw = emp.get("auth")
 
                     when (raw) {
@@ -561,64 +564,312 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
 
     private fun showNotificationDetailDialog(notification: Notification) {
         val displayMetrics = resources.displayMetrics
-        val maxHeight = (displayMetrics.heightPixels * 0.6).toInt()
+        val maxHeight = (displayMetrics.heightPixels * 0.75).toInt()
+
         val scrollView = android.widget.ScrollView(requireContext()).apply {
             layoutParams = android.view.ViewGroup.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                maxHeight // 최대 높이 설정
+                maxHeight
             )
-            setPadding(50, 20, 50, 20)
+            setPadding(40, 20, 40, 20)
             isScrollbarFadingEnabled = false
             isVerticalScrollBarEnabled = true
+            setBackgroundColor(requireContext().getColor(android.R.color.white))
         }
 
-        val container = android.widget.LinearLayout(requireContext()).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(50, 20, 50, 20)
+        val container = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 0, 0, 0)
         }
 
         scrollView.addView(container)
 
-        val textView = android.widget.TextView(requireContext()).apply {
-            text = buildString {
-                append("제목: ${notification.title}\n\n")
-                append("내용: ${notification.content}\n\n")
-                append("작성일: ${notification.createdAt?.toDate()?.toString() ?: "알 수 없음"}\n")
-                append("상태: ${if (notification.active) "활성" else "비활성"}\n")
-                append("우선순위: ${notification.priority.displayName}\n")
-                notification.auth?.let { append("권한: $it\n") }
-                notification.targetDept?.let { append("수신 부서: ${it.joinToString(", ")}\n") }
-                notification.attachmentUrl?.let {
-                    if (it.isNotEmpty()) append("첨부파일: ${it.size}개\n")
-                }
+        // 알림 정보 카드
+        val infoCard = com.google.android.material.card.MaterialCardView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 0, 0, 20)
             }
-            textSize = 16f
+            radius = 12f
+            cardElevation = 4f
+            setCardBackgroundColor(requireContext().getColor(android.R.color.white))
+            strokeWidth = 0
+        }
+
+        val infoLayout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 20, 24, 20)
+        }
+
+        // 제목
+        val titleText = android.widget.TextView(requireContext()).apply {
+            text = notification.title
+            textSize = 20f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(requireContext().getColor(android.R.color.black))
+            setPadding(0, 0, 0, 16)
             setTextIsSelectable(true)
         }
-        container.addView(textView)
+        infoLayout.addView(titleText)
+
+        // 얇은 구분선
+        val topDivider = View(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1
+            ).apply {
+                setMargins(0, 0, 0, 16)
+            }
+            setBackgroundColor(requireContext().getColor(android.R.color.darker_gray))
+            alpha = 0.2f
+        }
+        infoLayout.addView(topDivider)
+
+        // 내용
+        val contentText = android.widget.TextView(requireContext()).apply {
+            text = notification.content
+            textSize = 17f
+            setTextColor(requireContext().getColor(android.R.color.black))
+            setPadding(0, 0, 0, 16)
+            setLineSpacing(6f, 1f)
+            setTextIsSelectable(true)
+        }
+        infoLayout.addView(contentText)
+
+        // 메타 정보
+        val metaText = android.widget.TextView(requireContext()).apply {
+            val formattedDate = notification.createdAt?.toDate()?.let { date ->
+                java.text.SimpleDateFormat("yyyy.MM.dd", java.util.Locale.KOREAN).format(date)
+            } ?: "알 수 없음"
+
+            text = buildString {
+                append("📅 $formattedDate  ")
+                append("•  ${if (notification.active) "✓ 활성" else "✗ 비활성"}  ")
+                append("•  ${notification.priority.displayName}")
+                /** 2는 전체 권한을 의미, 개발 시 혼동 주의! */
+                notification.auth?.let {
+                    val authText = when(it) {
+                        2 -> "전체"
+                        else -> it.toString()
+                    }
+                    append("\n🔐 권한: $authText")
+                }
+                notification.targetDept?.let {
+                    val deptText = if (it.size > 2) {
+                        "${it.take(2).joinToString(", ")} 외 ${it.size - 2}개"
+                    } else {
+                        it.joinToString(", ")
+                    }
+                    append("  •  🏢 $deptText")
+                }
+                notification.attachmentUrl?.let {
+                    if (it.isNotEmpty()) append("  •  📎 ${it.size}개")
+                }
+            }
+            textSize = 14f
+            setTextColor(requireContext().getColor(android.R.color.darker_gray))
+            setLineSpacing(4f, 1f)
+        }
+        infoLayout.addView(metaText)
+
+        infoCard.addView(infoLayout)
+        container.addView(infoCard)
+
+        // 읽지 않은 사용자 카드
+        val unreadCard = com.google.android.material.card.MaterialCardView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            radius = 12f
+            cardElevation = 4f
+            setCardBackgroundColor(requireContext().getColor(android.R.color.white))
+            strokeWidth = 0
+        }
+
+        val unreadLayout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 20, 24, 20)
+        }
+
+        // 헤더 레이아웃
+        val headerLayout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, 12)
+        }
 
         val unreadTitle = android.widget.TextView(requireContext()).apply {
-            text = "읽지 않은 사용자"
-            textSize = 16f
+            text = "👥 읽지 않은 사용자"
+            textSize = 17f
             setTypeface(null, android.graphics.Typeface.BOLD)
-            setPadding(0, 10, 0, 10)
-            setTextColor(requireContext().getColor(R.color.black))
+            setTextColor(requireContext().getColor(android.R.color.black))
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
         }
-        container.addView(unreadTitle)
+        headerLayout.addView(unreadTitle)
+
+        // 카운트 뱃지
+        val countBadge = android.widget.TextView(requireContext()).apply {
+            text = "0"
+            textSize = 13f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(requireContext().getColor(android.R.color.white))
+            setPadding(16, 6, 16, 6)
+            setBackgroundColor(requireContext().getColor(android.R.color.holo_red_light))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(requireContext().getColor(android.R.color.holo_red_light))
+                cornerRadius = 20f
+            }
+            visibility = View.GONE
+        }
+        headerLayout.addView(countBadge)
+
+        unreadLayout.addView(headerLayout)
 
         val unreadUsersText = android.widget.TextView(requireContext()).apply {
-            text = "불러오는 중"
-            textSize = 14f
-            setPadding(0, 0, 0, 10)
+            text = "불러오는 중..."
+            textSize = 15f
+            setTextColor(requireContext().getColor(android.R.color.darker_gray))
+            setLineSpacing(8f, 1f)
+            maxLines = Int.MAX_VALUE  // 여러 줄 허용하되
+            ellipsize = android.text.TextUtils.TruncateAt.END  // 각 줄이 넘치면 ...
+            setSingleLine(false)  // 여러 줄 가능
         }
-        container.addView(unreadUsersText)
+        unreadLayout.addView(unreadUsersText)
 
-        viewModel.loadUnreadUsers(notification.id, notification.auth, notification.targetDept)
+        unreadCard.addView(unreadLayout)
+        container.addView(unreadCard)
+
+        val currentUserEmpNum = getUserEmpNum()
+        if (currentUserEmpNum == null) {
+            unreadUsersText.text = "⚠️ 사용자 정보를 찾을 수 없습니다"
+            AlertDialog.Builder(requireContext())
+                .setTitle("${notification.priority.displayName} 알림")
+                .setView(scrollView)
+                .setPositiveButton("확인", null)
+                .show()
+            return
+        }
+
+        viewModel.loadUnreadUsers(
+            notification.id,
+            notification.auth,
+            notification.targetDept,
+            currentUserEmpNum
+        )
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.unreadUsers.collectLatest { users ->
-                unreadUsersText.text = if (users.isEmpty()) { "읽지 않은 사용자가 없습니다." }
-                else { users.joinToString("\n") { "• $it" } }
+            viewModel.unreadUsersState.collectLatest { state ->
+                when (state) {
+                    is NotificationManagementViewModel.UnreadUsersState.Initial -> {
+                        unreadUsersText.text = "불러오는 중..."
+                        countBadge.visibility = View.GONE
+                    }
+                    is NotificationManagementViewModel.UnreadUsersState.Loading -> {
+                        unreadUsersText.text = "불러오는 중..."
+                        countBadge.visibility = View.GONE
+                    }
+                    is NotificationManagementViewModel.UnreadUsersState.Success -> {
+                        if (state.users.isEmpty()) {
+                            // empNum 파라미터 제거
+                            val isMyDept = viewModel.isMyDepartmentTarget(notification.targetDept)
+
+                            unreadUsersText.text = if (isMyDept) {
+                                "✓ 모든 사용자가 읽었습니다"
+                            } else {
+                                "ℹ️ 대상 부서가 아닙니다"
+                            }
+                            unreadUsersText.setTextColor(requireContext().getColor(
+                                if (isMyDept) android.R.color.holo_green_dark
+                                else android.R.color.darker_gray
+                            ))
+                            countBadge.visibility = View.GONE
+                        } else {
+                            countBadge.text = state.users.size.toString()
+                            countBadge.visibility = View.VISIBLE
+
+                            val formattedUsers = state.users.map { user ->
+                                val parts = user.split(" ")
+                                if (parts.size >= 3) {
+                                    val name = parts[0]
+                                    val empNum = parts[1]
+                                    // Repository에서 이미 잘라진 displayDept를 받음
+                                    val displayDept = parts.drop(2).joinToString(" ").removeSurrounding("(", ")")
+
+                                    android.text.SpannableStringBuilder().apply {
+                                        // 사번 (굵게, 파란색)
+                                        val start = length
+                                        append(empNum)
+                                        setSpan(
+                                            android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                                            start,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+                                        setSpan(
+                                            android.text.style.ForegroundColorSpan(
+                                                requireContext().getColor(android.R.color.holo_blue_dark)
+                                            ),
+                                            start,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+
+                                        // 이름 (검정, 굵게)
+                                        val nameStart = length
+                                        append(" $name")
+                                        setSpan(
+                                            android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                                            nameStart,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+
+                                        // 소속 (작고 회색), 길이가 길면 ... 처리
+                                        val deptStart = length
+                                        val maxDeptLength = 12
+                                        val truncatedDept = if (displayDept.length > maxDeptLength) {
+                                            displayDept.take(maxDeptLength) + "..."
+                                        } else {
+                                            displayDept
+                                        }
+                                        append(" $truncatedDept")
+                                        setSpan(
+                                            android.text.style.ForegroundColorSpan(
+                                                requireContext().getColor(android.R.color.darker_gray)
+                                            ),
+                                            deptStart,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+                                        setSpan(
+                                            android.text.style.RelativeSizeSpan(0.88f),
+                                            deptStart,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+                                    }
+                                } else {
+                                    android.text.SpannableStringBuilder(user)
+                                }
+                            }
+
+                            unreadUsersText.text = formattedUsers.joinToString("\n") { it }
+                            unreadUsersText.setTextColor(requireContext().getColor(android.R.color.black))
+                        }
+                    }
+                    is NotificationManagementViewModel.UnreadUsersState.Error -> {
+                        unreadUsersText.text = "❌ 조회 실패: ${state.message}"
+                        unreadUsersText.setTextColor(requireContext().getColor(android.R.color.holo_red_dark))
+                        countBadge.visibility = View.GONE
+                    }
+                }
             }
         }
 
@@ -629,10 +880,16 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
             .show()
     }
 
+    private fun getUserEmpNum(): String? {
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null)
+        return if (!empNum.isNullOrEmpty()) empNum else null
+    }
+
     //todo:수정 시 다이얼로그 UI 변경
     private fun showEditNotificationDialog(notification: Notification) {
-        val layout = android.widget.LinearLayout(requireContext()).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
+        val layout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(50, 40, 50, 10)
         }
 

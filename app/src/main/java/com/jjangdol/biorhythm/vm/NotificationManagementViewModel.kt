@@ -17,6 +17,7 @@ import android.util.Log
 import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.StorageMetadata
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
@@ -40,8 +41,8 @@ class NotificationManagementViewModel @Inject constructor(
 
     private val storage = com.google.firebase.storage.FirebaseStorage.getInstance("gs://bio-app-d2b71.firebasestorage.app")
 
-    private val _unreadUsers = MutableStateFlow<List<String>>(emptyList())
-    val unreadUsers : StateFlow<List<String>> = _unreadUsers.asStateFlow()
+    // 현재 사용자 부서 정보
+    private var currentUserDeptPath: List<String>? = null
 
     val notifications = combine(
         allNotifications,
@@ -63,6 +64,14 @@ class NotificationManagementViewModel @Inject constructor(
         object Loading : UiState()
         data class Success(val message: String) : UiState()
         data class Error(val message: String) : UiState()
+    }
+
+    // 로딩 state를 위한 클래스
+    sealed class UnreadUsersState {
+        object Initial : UnreadUsersState()
+        object Loading : UnreadUsersState()
+        data class Success(val users: List<String>) : UnreadUsersState()
+        data class Error(val message: String) : UnreadUsersState()
     }
 
     //로그인 보장
@@ -232,6 +241,43 @@ class NotificationManagementViewModel @Inject constructor(
         }
     }
 
+    // 부서 정보를 로드
+    fun loadCurrentUserDepartment(currentUserEmpNum: String) {
+        if (currentUserDeptPath != null) return // 이미 로드됨
+
+        viewModelScope.launch {
+            try {
+                val db = FirebaseFirestore.getInstance()
+                val currentUserDoc = db.collection("employees").document(currentUserEmpNum).get().await()
+                currentUserDeptPath = currentUserDoc.get("departmentPath") as? List<String>
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "부서 정보 로드 실패", e)
+            }
+        }
+    }
+
+    // 사용자 부서와 타겟 부서 비교(bool)
+    fun isMyDepartmentTarget(targetDept: List<String>?): Boolean {
+        // 부서 정보가 없으면 판단 불가 - 일단 true-
+        val myDeptPath = currentUserDeptPath
+        if (myDeptPath == null) {
+            return true
+        }
+
+        // "전체"면 내 부서 포함
+        if (targetDept == null || targetDept.contains("전체")) {
+            return true
+        }
+
+        val result = targetDept.any { target ->
+            myDeptPath.any { myDept ->
+                val matches = myDept.startsWith(target) || target.startsWith(myDept)
+                matches
+            }
+        }
+        return result
+    }
+
     fun toggleNotificationStatus(notificationId: String) {
         viewModelScope.launch {
             notificationRepository.toggleNotificationStatus(notificationId)
@@ -253,17 +299,24 @@ class NotificationManagementViewModel @Inject constructor(
         _uiState.value = UiState.Success("목록을 새로고침했습니다")
     }
 
+    private val _unreadUsersState = MutableStateFlow<UnreadUsersState>(UnreadUsersState.Initial)
+    val unreadUsersState: StateFlow<UnreadUsersState> = _unreadUsersState.asStateFlow()
+
     //읽지 않은 사용자
-    fun loadUnreadUsers(notificationId: String, targetAuth: Int?, targetDept: List<String>?) {
+    fun loadUnreadUsers(notificationId: String, targetAuth: Int?, targetDept: List<String>?, currentUserEmpNum: String) {
         viewModelScope.launch {
+            _unreadUsersState.value = UnreadUsersState.Loading  // 로딩 시작
+
             try {
-                val result = notificationRepository.getUnreadUsers(notificationId, targetAuth, targetDept)
-                if (result.isSuccess) {
-                    _unreadUsers.value = result.getOrNull() ?: emptyList()
+                val result = notificationRepository.getUnreadUsers(notificationId, targetAuth, targetDept, currentUserEmpNum)
+                _unreadUsersState.value = if (result.isSuccess) {
+                    UnreadUsersState.Success(result.getOrNull() ?: emptyList())
                 } else {
-                    _unreadUsers.value = emptyList()
+                    UnreadUsersState.Error("조회 실패")
                 }
-            } catch (e: Exception) { _unreadUsers.value = emptyList() }
+            } catch (e: Exception) {
+                _unreadUsersState.value = UnreadUsersState.Error(e.message ?: "알 수 없는 오류")
+            }
         }
     }
 }

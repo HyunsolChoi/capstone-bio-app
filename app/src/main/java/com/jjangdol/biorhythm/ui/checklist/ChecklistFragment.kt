@@ -74,7 +74,7 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
 
     private fun initializeSafetyCheckSession() {
         viewLifecycleOwner.lifecycleScope.launch {
-            val userId = getEmpNum() ?: return@launch
+            val userId = getUserEmpNum() ?: return@launch
             val session = SafetyCheckSession(
                 sessionId = sessionId,
                 userId = userId,
@@ -148,7 +148,7 @@ class ChecklistFragment : Fragment(R.layout.fragment_checklist) {
 
 
     // 사번 정보 가져오기 및 검증
-    private suspend fun getEmpNum(): String? {
+    private suspend fun getUserEmpNum(): String? {
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val userName = prefs.getString("user_name", "") ?: ""
         val empNum = prefs.getString("emp_num", "") ?: ""
