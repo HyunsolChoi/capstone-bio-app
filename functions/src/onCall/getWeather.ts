@@ -84,7 +84,7 @@ export const getWeatherData = onCall({ secrets: [serviceKey] }, async (request) 
   // const url = `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst?dataType=json&serviceKey=${serviceKey.value()}&numOfRows=60&pageNo=1&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
 
   // 기상청 API 호출 (api 허브 대체)
-  const url = `https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst?pageNo=1&numOfRows=60&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}&authKey=${serviceKey.value()}`;
+  const url = `https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtFcst?pageNo=1&numOfRows=60&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}&authKey=${serviceKey.value()}`;
   logger.info(`API 요청 URL: ${url}`);
 
   try {
@@ -105,19 +105,19 @@ export const getWeatherData = onCall({ secrets: [serviceKey] }, async (request) 
     }
 
     // 5. 데이터 가공 및 반환 형식 맞추기
-    const targetCategories = new Set(["T1H", "RN1", "REH", "PTY", "WSD", "VEC"]);
+    const targetCategories = new Set(["T1H", "RN1", "REH", "PTY", "WSD", "VEC", "SKY"]);
 
     // category를 키로, fcstValue를 값으로 하는 객체를 생성
     const processedData = items
       .filter((item: any) => {
         const isTarget = targetCategories.has(item.category);
-        const hasValue = item.obsrValue !== undefined && item.obsrValue !== null;
+        const hasValue = item.fcstValue !== undefined && item.fcstValue !== null;
 
-        logger.info(`카테고리 ${item.category}: 타겟=${isTarget}, 값=${item.obsrValue}`);
+        logger.info(`카테고리 ${item.category}: 타겟=${isTarget}, 값=${item.fcstValue}`);
         return isTarget && hasValue;
       })
       .reduce((acc: any, item: any) => {
-        acc[item.category] = item.obsrValue;
+        acc[item.category] = item.fcstValue;
         return acc;
       }, {});
 

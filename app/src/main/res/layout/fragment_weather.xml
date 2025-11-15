@@ -9,9 +9,6 @@
     android:background="@color/background_color">
 
     <androidx.core.widget.NestedScrollView
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true"
@@ -200,7 +197,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="EX) 서울시 종로구"
+                            android:text="서울시 종로구"
                             android:textColor="@color/text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold"/>
@@ -209,7 +206,7 @@
                             android:id="@+id/tvNowTemp"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="00°"
+                            android:text="0°"
                             android:textColor="@color/text_primary"
                             android:textSize="32sp"
                             android:textStyle="bold"/>
@@ -220,7 +217,7 @@
                             android:layout_height="wrap_content"
                             android:text="맑음 · 체감온도 00°"
                             android:textColor="@color/text_primary"
-                            android:textSize="14sp"/>
+                            android:textSize="14sp" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -240,7 +237,7 @@
                             android:id="@+id/tvHumidity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="습도 00%"
+                            android:text="습도 0%"
                             android:textColor="@color/text_primary"
                             android:textSize="12sp"/>
 
