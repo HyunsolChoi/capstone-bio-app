@@ -2,6 +2,7 @@
 package com.jjangdol.biorhythm.ui.main
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -9,13 +10,16 @@ import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.jjangdol.biorhythm.R
 import com.jjangdol.biorhythm.databinding.FragmentNotificationDetailBinding
 import com.jjangdol.biorhythm.data.model.Notification
+import com.jjangdol.biorhythm.vm.NotificationManagementViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -27,22 +31,31 @@ class NotificationDetailFragment : Fragment(R.layout.fragment_notification_detai
     private var _binding: FragmentNotificationDetailBinding? = null
     private val binding get() = _binding!!
 
+    private val viewModel: NotificationManagementViewModel by viewModels()
+
     private var notification: Notification? = null
+    private var isAdminMode: Boolean = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentNotificationDetailBinding.bind(view)
 
-        // Arguments에서 Notification 받기
+        // Arguments에서 Notification과 모드 받기
         notification = arguments?.getParcelable("notification")
+        isAdminMode = arguments?.getBoolean("isAdminMode", false) ?: false
 
         setupUI()
         setupClickListeners()
+
+        // 관리자 모드일 때만 읽지 않은 사용자 로드
+        if (isAdminMode) {
+            loadUnreadUsers()
+        }
     }
 
     private fun setupUI() {
         notification?.let { notif ->
-            // 제목 및 우선순위
+            // 제목
             binding.tvTitle.text = notif.title
 
             // 우선순위별 색상
@@ -66,8 +79,167 @@ class NotificationDetailFragment : Fragment(R.layout.fragment_notification_detai
             } ?: "작성일: 알 수 없음"
             binding.tvCreatedAt.text = createdAtText
 
+            // 관리자 모드일 때만 정보 표시
+            if (isAdminMode) {
+                binding.tvMetaInfo.visibility = View.VISIBLE
+                binding.tvMetaInfo.text = buildString {
+                    append("${if (notif.active) "✓ 활성" else "✗ 비활성"}  ")
+                    append("•  ${notif.priority.displayName}")
+
+                    notif.auth?.let {
+                        val authText = when(it) {
+                            2 -> "전체"
+                            else -> it.toString()
+                        }
+                        append("\n🔐 권한: $authText")
+                    }
+
+                    notif.targetDept?.let {
+                        val deptText = if (it.size > 2) {
+                            "${it.take(2).joinToString(", ")} 외 ${it.size - 2}개"
+                        } else {
+                            it.joinToString(", ")
+                        }
+                        append("  •  🏢 $deptText")
+                    }
+
+                    notif.attachmentUrl?.let {
+                        if (it.isNotEmpty()) append("  •  📎 ${it.size}개")
+                    }
+                }
+            } else {
+                binding.tvMetaInfo.visibility = View.GONE
+            }
+
             // 첨부파일
             setupAttachments(notif.attachmentUrl ?: emptyList())
+
+            // 읽지 않은 사용자 카드는 관리자 모드일 때만 표시
+            binding.unreadUsersCard.visibility = if (isAdminMode) View.VISIBLE else View.GONE
+        }
+    }
+
+    private fun loadUnreadUsers() {
+        val notif = notification ?: return
+        val currentUserEmpNum = getUserEmpNum()
+
+        if (currentUserEmpNum == null) {
+            binding.tvUnreadUsers.text = "⚠️ 사용자 정보를 찾을 수 없습니다"
+            return
+        }
+
+        viewModel.loadUnreadUsers(
+            notif.id,
+            notif.auth,
+            notif.targetDept,
+            currentUserEmpNum
+        )
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.unreadUsersState.collectLatest { state ->
+                when (state) {
+                    is NotificationManagementViewModel.UnreadUsersState.Initial -> {
+                        binding.tvUnreadUsers.text = "불러오는 중..."
+                        binding.tvUnreadCount.visibility = View.GONE
+                    }
+                    is NotificationManagementViewModel.UnreadUsersState.Loading -> {
+                        binding.tvUnreadUsers.text = "불러오는 중..."
+                        binding.tvUnreadCount.visibility = View.GONE
+                    }
+                    is NotificationManagementViewModel.UnreadUsersState.Success -> {
+                        if (state.users.isEmpty()) {
+                            val isMyDept = viewModel.isMyDepartmentTarget(notif.targetDept)
+
+                            binding.tvUnreadUsers.text = if (isMyDept) {
+                                "✓ 모든 사용자가 읽었습니다"
+                            } else {
+                                "ℹ️ 대상 부서가 아닙니다"
+                            }
+                            binding.tvUnreadUsers.setTextColor(requireContext().getColor(
+                                if (isMyDept) android.R.color.holo_green_dark
+                                else android.R.color.darker_gray
+                            ))
+                            binding.tvUnreadCount.visibility = View.GONE
+                        } else {
+                            binding.tvUnreadCount.text = state.users.size.toString()
+                            binding.tvUnreadCount.visibility = View.VISIBLE
+
+                            val formattedUsers = state.users.map { user ->
+                                val parts = user.split(" ")
+                                if (parts.size >= 3) {
+                                    val name = parts[0]
+                                    val empNum = parts[1]
+                                    val displayDept = parts.drop(2).joinToString(" ").removeSurrounding("(", ")")
+
+                                    android.text.SpannableStringBuilder().apply {
+                                        // 사번 (굵게, 파란색)
+                                        val start = length
+                                        append(empNum)
+                                        setSpan(
+                                            android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                                            start,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+                                        setSpan(
+                                            android.text.style.ForegroundColorSpan(
+                                                requireContext().getColor(android.R.color.holo_blue_dark)
+                                            ),
+                                            start,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+
+                                        // 이름 (검정, 굵게)
+                                        val nameStart = length
+                                        append(" $name")
+                                        setSpan(
+                                            android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                                            nameStart,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+
+                                        // 소속 (작고 회색)
+                                        val deptStart = length
+                                        val maxDeptLength = 12
+                                        val truncatedDept = if (displayDept.length > maxDeptLength) {
+                                            displayDept.take(maxDeptLength) + "..."
+                                        } else {
+                                            displayDept
+                                        }
+                                        append(" $truncatedDept")
+                                        setSpan(
+                                            android.text.style.ForegroundColorSpan(
+                                                requireContext().getColor(android.R.color.darker_gray)
+                                            ),
+                                            deptStart,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+                                        setSpan(
+                                            android.text.style.RelativeSizeSpan(0.88f),
+                                            deptStart,
+                                            length,
+                                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                        )
+                                    }
+                                } else {
+                                    android.text.SpannableStringBuilder(user)
+                                }
+                            }
+
+                            binding.tvUnreadUsers.text = formattedUsers.joinToString("\n") { it }
+                            binding.tvUnreadUsers.setTextColor(requireContext().getColor(android.R.color.black))
+                        }
+                    }
+                    is NotificationManagementViewModel.UnreadUsersState.Error -> {
+                        binding.tvUnreadUsers.text = "❌ 조회 실패: ${state.message}"
+                        binding.tvUnreadUsers.setTextColor(requireContext().getColor(android.R.color.holo_red_dark))
+                        binding.tvUnreadCount.visibility = View.GONE
+                    }
+                }
+            }
         }
     }
 
@@ -75,6 +247,7 @@ class NotificationDetailFragment : Fragment(R.layout.fragment_notification_detai
         if (urls.isEmpty()) {
             binding.chipGroupAttachments.visibility = View.GONE
             binding.attachmentPreviewContainer.visibility = View.GONE
+            binding.tvAttachmentsLabel.visibility = View.GONE
             return
         }
 
@@ -178,17 +351,10 @@ class NotificationDetailFragment : Fragment(R.layout.fragment_notification_detai
         }
     }
 
-    private fun shareNotification(notification: Notification) {
-        val shareText = "${notification.title}\n\n${notification.content}\n\n- ${notification.priority.displayName} 알림"
-
-        val shareIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, shareText)
-            putExtra(Intent.EXTRA_SUBJECT, notification.title)
-        }
-
-        startActivity(Intent.createChooser(shareIntent, "알림 공유"))
+    private fun getUserEmpNum(): String? {
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val empNum = prefs.getString("emp_num", null)
+        return if (!empNum.isNullOrEmpty()) empNum else null
     }
 
     // Utility functions

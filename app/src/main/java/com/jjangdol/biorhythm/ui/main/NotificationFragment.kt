@@ -241,18 +241,18 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
     }
 
     private suspend fun downloadToCacheHttps(url: String, fileName: String): java.io.File? = withContext(Dispatchers.IO) {
-            try {
-                val cacheDir = java.io.File(requireContext().cacheDir, "attachments").apply { mkdirs() }
-                val local = java.io.File(cacheDir, fileName)
-                if (local.exists()) return@withContext local
+        try {
+            val cacheDir = java.io.File(requireContext().cacheDir, "attachments").apply { mkdirs() }
+            val local = java.io.File(cacheDir, fileName)
+            if (local.exists()) return@withContext local
 
-                val conn = java.net.URL(url).openConnection()
-                conn.getInputStream().use { input ->
-                    java.io.FileOutputStream(local).use { out -> input.copyTo(out) }
-                }
-                local
-            } catch (_: Exception) { null }
-        }
+            val conn = java.net.URL(url).openConnection()
+            conn.getInputStream().use { input ->
+                java.io.FileOutputStream(local).use { out -> input.copyTo(out) }
+            }
+            local
+        } catch (_: Exception) { null }
+    }
 
     // PDF 1페이지 썸네일 (캐시 파일 필요)
     private suspend fun renderPdf(pdfFile: java.io.File, reqW: Int, reqH: Int): android.graphics.Bitmap? =
@@ -277,6 +277,7 @@ class NotificationFragment : Fragment(R.layout.fragment_notification) {
         try {
             val bundle = Bundle().apply {
                 putParcelable("notification", notification)
+                putBoolean("isAdminMode", false) //관리자 모드는 사용 X
             }
 
             // MainActivity의 NavController를 찾아서 사용

@@ -76,7 +76,7 @@
 
                 </LinearLayout>
 
-                <!-- 작성일  -->
+                <!-- 작성일 및 정보 -->
                 <TextView
                     android:id="@+id/tvCreatedAt"
                     android:layout_width="wrap_content"
@@ -86,6 +86,19 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp"
                     tools:text="2025.05.01" />
+
+                <!-- 관리자용 정보 (상태, 권한, 부서) -->
+                <TextView
+                    android:id="@+id/tvMetaInfo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    android:visibility="gone"
+                    tools:visibility="visible"
+                    tools:text="✓ 활성  •  전체  •  🏢 인사팀  •  📎 2개" />
 
             </LinearLayout>
 
@@ -137,6 +150,73 @@
                 </HorizontalScrollView>
 
             </LinearLayout>
+
+            <!-- 관리자 전용: 읽지 않은 사용자 카드 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/unreadUsersCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@android:color/white"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingBottom="12dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="👥 읽지 않은 사용자"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/black" />
+
+                        <!-- 카운트 -->
+                        <TextView
+                            android:id="@+id/tvUnreadCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/white"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:paddingTop="6dp"
+                            android:background="@drawable/badge_background"
+                            android:paddingBottom="6dp"
+                            android:visibility="gone"
+                            tools:visibility="visible" />
+
+                    </LinearLayout>
+
+                    <!-- 읽지 않은 사용자 목록 -->
+                    <TextView
+                        android:id="@+id/tvUnreadUsers"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="불러오는 중..."
+                        android:textSize="15sp"
+                        android:textColor="@android:color/darker_gray"
+                        android:lineSpacingExtra="8dp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
 

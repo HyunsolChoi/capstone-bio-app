@@ -50,6 +50,8 @@
         <action
             android:id="@+id/action_main_to_newAdmin"
             app:destination="@id/newAdminFragment" />
+
+        <!-- 일반 사용자용 알림 상세 -->
         <action
             android:id="@+id/action_main_to_notificationDetail"
             app:destination="@id/notificationDetailFragment"
@@ -57,7 +59,6 @@
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
-        <!-- 기존 관리자 액션 제거됨 -->
     </fragment>
 
     <!-- 3. 체크리스트 화면 -->
@@ -216,8 +217,19 @@
         android:id="@+id/notificationManagementFragment"
         android:name="com.jjangdol.biorhythm.ui.admin.NotificationManagementFragment"
         android:label="알림 관리"
-        tools:layout="@layout/fragment_notification_management" />
+        tools:layout="@layout/fragment_notification_management">
 
+        <!-- 관리자용 알림 상세로 이동 -->
+        <action
+            android:id="@+id/action_notificationManagement_to_notificationDetail"
+            app:destination="@id/notificationDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <!-- 11. 알림 목록 화면 (일반 사용자용) -->
     <fragment
         android:id="@+id/notificationFragment"
         android:name="com.jjangdol.biorhythm.ui.main.NotificationFragment"
@@ -233,19 +245,21 @@
             app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
+    <!-- 12. 알림 상세 화면 (공통) -->
     <fragment
         android:id="@+id/notificationDetailFragment"
         android:name="com.jjangdol.biorhythm.ui.main.NotificationDetailFragment"
         android:label="알림 상세"
         tools:layout="@layout/fragment_notification_detail" />
 
+    <!-- 13. 체크리스트 문항 관리 화면 -->
     <fragment
         android:id="@+id/adminChecklistManagementFragment"
         android:name="com.jjangdol.biorhythm.ui.admin.AdminChecklistManagementFragment"
         android:label="체크리스트 문항 관리"
         tools:layout="@layout/fragment_admin_checklist_management" />
 
-    <!-- 11. 기상 정보 화면 -->
+    <!-- 14. 기상 정보 화면 -->
     <fragment
         android:id="@+id/weatherFragment"
         android:name="com.jjangdol.biorhythm.ui.weather.WeatherFragment"
