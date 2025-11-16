@@ -285,7 +285,7 @@
                         android:layout_height="wrap_content"
                         android:text="지침사항"
                         android:layout_marginTop="4dp"
-                        android:textSize="13sp"
+                        android:textSize="15sp"
                         android:textColor="@color/text_primary" />
 
                     <!-- 안전지침사항들을 넣을 컨테이너 -->

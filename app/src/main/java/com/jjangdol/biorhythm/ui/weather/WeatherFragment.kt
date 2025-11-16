@@ -41,6 +41,7 @@ import com.google.firebase.firestore.Source
 import android.text.InputFilter
 import android.text.InputType
 import android.text.method.DigitsKeyListener
+import android.view.LayoutInflater
 import android.widget.FrameLayout
 import androidx.lifecycle.Lifecycle
 import java.time.LocalTime
@@ -249,18 +250,161 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                         // 10~5월은 체감온도 미표시
                         binding.tvNowDesc.text = condition
                     }
+
+                    // ✨ 온도 기반으로 Firebase에서 지침 가져오기
+                    loadGuidelinesFromFirebase(temp)
                 } else {
                     binding.tvNowDesc.text = "$condition · 체감온도 --°"
+                    // 온도를 알 수 없으면 기본 지침 표시
+                    loadGuidelinesFromFirebase(null)
                 }
-
-                bindGuidelines(condition)
             } else {
                 Toast.makeText(requireContext(), "날씨 정보를 받아오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                // 날씨 정보 실패 시에도 기본 지침 표시
+                loadGuidelinesFromFirebase(null)
             }
         } catch (e: Exception) {
             Log.e("WeatherDebug", "getWeatherData 호출 실패", e)
             Toast.makeText(requireContext(), "날씨 정보를 가져오는 중 오류: ${e.message}", Toast.LENGTH_LONG)
                 .show()
+            // 오류 발생 시에도 기본 지침 표시
+            loadGuidelinesFromFirebase(null)
+        }
+    }
+
+    /** 온도 기반으로 적절한 레벨 결정 */
+    private fun determineGuidelineLevel(temp: Double?): String {
+        return when {
+            temp == null -> "level_0"
+            temp >= 38 -> "level_38"
+            temp >= 35 -> "level_35"
+            temp >= 33 -> "level_33"
+            temp >= 31 -> "level_31"
+            temp <= -15 -> "level_minus15"
+            temp <= -12 -> "level_minus12"
+            temp <= -6 -> "level_minus6"
+            else -> "level_0"
+        }
+    }
+
+    /** Firebase에서 온도 기반 지침 가져오기 */
+    private fun loadGuidelinesFromFirebase(temp: Double?) {
+        val level = determineGuidelineLevel(temp)
+
+        Log.d("WeatherDebug", "온도: $temp, 선택된 레벨: $level")
+
+        db.collection("SafeGuideline")
+            .document(level)
+            .get()
+            .addOnSuccessListener { document ->
+                if (!isAdded || _binding == null) return@addOnSuccessListener
+
+                if (document.exists()) {
+                    val guidelines = document.getString("guidelines")
+                    val riskLevel = document.getString("riskLevel") ?: "보통"
+
+                    if (!guidelines.isNullOrBlank()) {
+                        displayGuidelinesFromFirebase(guidelines, riskLevel, temp)
+                    } else {
+                        // guidelines가 비어있으면 기본값 표시
+                        loadDefaultGuidelines()
+                    }
+                } else {
+                    Log.w("WeatherDebug", "문서 '$level'이 존재하지 않음. 기본 지침 표시")
+                    loadDefaultGuidelines()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("WeatherDebug", "Firebase 지침 로드 실패", e)
+                if (isAdded && _binding != null) {
+                    loadDefaultGuidelines()
+                }
+            }
+    }
+
+    /** Firebase에서 가져온 지침을 화면에 표시 */
+    private fun displayGuidelinesFromFirebase(guidelines: String, riskLevel: String, temp: Double?) {
+        binding.tvGuidelineTitle.text = "안전 지침"
+
+        // 온도 정보 포함한 부제목
+        val subtitle = when {
+            temp == null -> riskLevel
+            temp >= 31 -> "폭염 주의 ($riskLevel)"
+            temp <= -6 -> "한파 주의 ($riskLevel)"
+            else -> riskLevel
+        }
+        binding.tvGuidelineSubtitle.text = subtitle
+
+        // 기존 항목 비우기
+        binding.guidelineContainer.removeAllViews()
+
+        // guidelines 문자열을 " • " 기준으로 분리
+        val items = guidelines
+            .split("•")  // • 기준으로 분리
+            .map { it.trim() }  // 앞뒤 공백 제거
+            .filter { it.isNotBlank() }  // 빈 항목 제거
+
+        val pad = (8 * resources.displayMetrics.density).toInt()
+
+        items.forEach { line ->
+            val tv = android.widget.TextView(requireContext()).apply {
+                text = "•  $line"
+
+                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
+                setTextColor(
+                    ContextCompat.getColor(
+                        requireContext(),
+                        R.color.text_primary
+                    )
+                )
+
+                // 상/하 패딩
+                setPadding(0, pad / 2, 0, pad / 2)
+
+                // 두 번째 줄부터 들여쓰기 적용
+                val hangingIndent = (16 * resources.displayMetrics.density).toInt()
+                val spannable = android.text.SpannableString(text)
+                spannable.setSpan(
+                    android.text.style.LeadingMarginSpan.Standard(0, hangingIndent),
+                    0,
+                    text.length,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                setText(spannable)
+            }
+
+            binding.guidelineContainer.addView(tv)
+        }
+    }
+
+    /** 기본 지침 표시 (Firebase 실패 시 대체) */
+    private fun loadDefaultGuidelines() {
+        binding.tvGuidelineTitle.text = "안전 지침"
+        binding.tvGuidelineSubtitle.text = "일반 작업 안전 수칙"
+
+        binding.guidelineContainer.removeAllViews()
+
+        val defaultItems = arrayOf(
+            "작업 전 안전장비를 착용하세요",
+            "주변 환경을 확인하고 작업하세요",
+            "무리한 작업은 피하고 적절히 휴식하세요",
+            "이상 증상 발생 시 즉시 보고하세요"
+        )
+
+        val pad = (8 * resources.displayMetrics.density).toInt()
+        defaultItems.forEach { line ->
+            val tv = android.widget.TextView(requireContext()).apply {
+                text = "• $line"
+                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
+                setTextColor(
+                    androidx.core.content.ContextCompat.getColor(
+                        requireContext(),
+                        R.color.text_primary
+                    )
+                )
+                setPadding(0, pad / 2, 0, pad / 2)
+            }
+            binding.guidelineContainer.addView(tv)
         }
     }
 
@@ -467,41 +611,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         } else {
             binding.tvUserName.text = ""
             binding.tvWelcome.text = "환영합니다"
-        }
-    }
-
-    /** 지침사항 */
-    private fun bindGuidelines(condition: String) {
-        // 제목/부제
-        binding.tvGuidelineTitle.text = "안전 지침"
-
-        val (subtitleRes, arrayRes) = when {
-            condition.contains("맑음") -> R.string.guideline_sunny_subtitle to R.array.guidelines_sunny
-            condition.contains("비") -> R.string.guideline_rain_subtitle to R.array.guidelines_rain
-            condition.contains("눈") -> R.string.guideline_snow_subtitle to R.array.guidelines_snow
-            else -> R.string.guideline_title to R.array.guidelines_default
-        }
-        binding.tvGuidelineSubtitle.text = getString(subtitleRes)
-
-        // 기존 항목 비우기
-        binding.guidelineContainer.removeAllViews()
-
-        val items = resources.getStringArray(arrayRes)
-
-        val pad = (8 * resources.displayMetrics.density).toInt()
-        items.forEach { line ->
-            val tv = android.widget.TextView(requireContext()).apply {
-                text = "$line"
-                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
-                setTextColor(
-                    androidx.core.content.ContextCompat.getColor(
-                        requireContext(),
-                        R.color.text_primary
-                    )
-                )
-                setPadding(0, pad / 2, 0, pad / 2)
-            }
-            binding.guidelineContainer.addView(tv)
         }
     }
 

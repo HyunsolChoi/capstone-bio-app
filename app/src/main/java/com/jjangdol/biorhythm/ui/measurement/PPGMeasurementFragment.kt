@@ -969,9 +969,6 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
 
         if (intervals.size < 3) return 0f
 
-        // LF: 0.04-0.15 Hz, HF: 0.15-0.4 Hz 대역 파워 추정
-        val samplingFreq = 1000f / intervals.average() // Hz
-
         var lfPower = 0f
         var hfPower = 0f
 
