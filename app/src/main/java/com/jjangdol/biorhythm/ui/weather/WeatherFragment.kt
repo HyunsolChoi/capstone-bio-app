@@ -635,8 +635,13 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 if (savedPwStr == password) {
                     Toast.makeText(requireContext(), "관리자 로그인 성공", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
-                    val mainNavController = requireActivity().findNavController(R.id.navHostFragment)
-                    mainNavController.navigate(R.id.action_main_to_newAdmin)
+                    try {
+                        val mainNavController = requireActivity().findNavController(R.id.navHostFragment)
+                        mainNavController.navigate(R.id.action_main_to_newAdmin)
+                    } catch (e: Exception) {
+                        Log.e("WeatherFragment", "Navigation error", e)
+                        Toast.makeText(requireContext(), "관리자 페이지로 이동할 수 없습니다", Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     Toast.makeText(requireContext(), "비밀번호가 올바르지 않습니다", Toast.LENGTH_SHORT).show()
                 }

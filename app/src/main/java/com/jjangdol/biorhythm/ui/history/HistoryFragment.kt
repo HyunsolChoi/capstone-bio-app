@@ -54,7 +54,11 @@ class HistoryFragment : Fragment(R.layout.fragment_history) {
 
     private fun setupUI() {
         binding.toolbar.setNavigationOnClickListener {
-            findNavController().navigateUp()
+            try {
+                findNavController().navigateUp()
+            } catch (e: Exception) {
+                Log.e("HistoryFragment", "Navigation error", e)
+            }
         }
     }
 
@@ -273,13 +277,6 @@ class HistoryFragment : Fragment(R.layout.fragment_history) {
             binding.emptyLayout.visibility = View.GONE
             binding.recyclerView.visibility = View.VISIBLE
         }
-    }
-
-    private fun clearDateFilter() {
-        selectedStartDate = null
-        selectedEndDate = null
-        updateDateFilterButton()
-        applyFilters()
     }
 
     override fun onDestroyView() {
