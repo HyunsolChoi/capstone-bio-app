@@ -394,19 +394,33 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
         AlertDialog.Builder(requireContext())
             .setTitle("관리자 임명")
             .setView(layout)
-            .setPositiveButton("부여") { _, _ ->
+            .setPositiveButton("부여", null) // null로 설정
+            .setNegativeButton("취소", null)
+            .create()
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("관리자 권한 부여")
+            .setView(layout)
+            .setPositiveButton("부여", null) // null로 설정
+            .setNegativeButton("취소", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton.setOnClickListener {
                 val empNum = empNumEdit.text.toString()
                 val name = nameEdit.text.toString()
                 val authInput = authEdit.text.toString()
                 val password = passwordEdit.text.toString()
 
-                grantAdminPermission(empNum, name, authInput, password)
+                grantAdminPermission(empNum, name, authInput, password, dialog)
             }
-            .setNegativeButton("취소", null)
-            .show()
+        }
+
+        dialog.show()
     }
 
-    private fun grantAdminPermission(empNum: String, name: String, authInput: String, password: String) {
+    private fun grantAdminPermission(empNum: String, name: String, authInput: String, password: String, dialog: AlertDialog) {
         // 입력 유효성 검사
         when {
             empNum.isEmpty() -> {
@@ -498,6 +512,7 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
                             .addOnSuccessListener {
                                 val authName = if (newAuth == 0) "최고관리자" else "일반관리자"
                                 Toast.makeText(requireContext(), "${name}님에게 ${authName} 권한이 부여되었습니다", Toast.LENGTH_SHORT).show()
+                                dialog.dismiss()
                             }
                             .addOnFailureListener { exception ->
                                 Toast.makeText(requireContext(), "권한 부여 실패: ${exception.message}", Toast.LENGTH_SHORT).show()
