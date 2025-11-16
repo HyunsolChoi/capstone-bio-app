@@ -434,6 +434,19 @@
                     app:iconGravity="textStart"
                     app:iconSize="20dp" />
 
+                <!-- 세 번째 줄 버튼 -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnGrantAdmin"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="관리자 임명"
+                    android:textSize="16sp"
+                    app:backgroundTint="@color/text_secondary"
+                    app:cornerRadius="12dp"
+                    app:icon="@drawable/ic_lock"
+                    app:iconGravity="textStart"
+                    app:iconSize="20dp" />
+
             </LinearLayout>
 
         </LinearLayout>

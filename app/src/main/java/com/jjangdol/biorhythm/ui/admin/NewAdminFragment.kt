@@ -123,6 +123,11 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
             // try-catch 제거, NavController만 사용
             findNavController().navigate(R.id.action_newAdminFragment_to_adminChecklistManagementFragment)
         }
+
+        //  관리자 임명 버튼
+        binding.btnGrantAdmin.setOnClickListener {
+            showGrantAdminDialog()
+        }
     }
 
     private fun observeData() {
@@ -353,6 +358,158 @@ class NewAdminFragment : Fragment(R.layout.fragment_new_admin) {
                 }
             }
         }
+    }
+
+    private fun showGrantAdminDialog() {
+        val layout = android.widget.LinearLayout(requireContext()).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)
+        }
+
+        val empNumEdit = EditText(requireContext()).apply {
+            hint = "사원번호"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+
+        val nameEdit = EditText(requireContext()).apply {
+            hint = "이름"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
+
+        val authEdit = EditText(requireContext()).apply {
+            hint = "권한 (0: 최고관리자, 1: 일반관리자)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+
+        val passwordEdit = EditText(requireContext()).apply {
+            hint = "새 비밀번호"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+
+        layout.addView(empNumEdit)
+        layout.addView(nameEdit)
+        layout.addView(authEdit)
+        layout.addView(passwordEdit)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("관리자 임명")
+            .setView(layout)
+            .setPositiveButton("부여") { _, _ ->
+                val empNum = empNumEdit.text.toString()
+                val name = nameEdit.text.toString()
+                val authInput = authEdit.text.toString()
+                val password = passwordEdit.text.toString()
+
+                grantAdminPermission(empNum, name, authInput, password)
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun grantAdminPermission(empNum: String, name: String, authInput: String, password: String) {
+        // 입력 유효성 검사
+        when {
+            empNum.isEmpty() -> {
+                Toast.makeText(requireContext(), "사원번호를 입력해주세요", Toast.LENGTH_SHORT).show()
+                return
+            }
+            name.isEmpty() -> {
+                Toast.makeText(requireContext(), "이름을 입력해주세요", Toast.LENGTH_SHORT).show()
+                return
+            }
+            authInput.isEmpty() -> {
+                Toast.makeText(requireContext(), "권한을 입력해주세요", Toast.LENGTH_SHORT).show()
+                return
+            }
+            password.length < 4 -> {
+                Toast.makeText(requireContext(), "비밀번호는 4자 이상이어야 합니다", Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+
+        val newAuth = authInput.toIntOrNull()
+        if (newAuth == null || (newAuth != 0 && newAuth != 1)) {
+            Toast.makeText(requireContext(), "권한은 0 또는 1만 가능합니다", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 내 auth 읽어오기
+        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val myEmpNum = prefs.getString("emp_num", null)
+
+        if (myEmpNum.isNullOrEmpty()) {
+            Toast.makeText(requireContext(), "로그인 정보를 찾을 수 없습니다", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        db.collection("employees")
+            .document(myEmpNum)
+            .get()
+            .addOnSuccessListener { myDocument ->
+                val myAuth = myDocument.getLong("auth")?.toInt() ?: 1
+
+                // 권한 검증
+                if (myAuth == 1 && newAuth == 0) {
+                    Toast.makeText(requireContext(), "일반관리자는 최고관리자 권한을 부여할 수 없습니다", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+
+                // 대상 사원 정보 조회
+                db.collection("employees")
+                    .document(empNum)
+                    .get()
+                    .addOnSuccessListener { targetDocument ->
+                        if (!targetDocument.exists()) {
+                            Toast.makeText(requireContext(), "해당 사원번호가 존재하지 않습니다", Toast.LENGTH_SHORT).show()
+                            return@addOnSuccessListener
+                        }
+
+                        val targetName = targetDocument.getString("Name") ?: ""
+                        val targetAuth = targetDocument.getLong("auth")?.toInt() ?: 2
+
+                        // 이름 확인
+                        if (targetName != name) {
+                            Toast.makeText(requireContext(), "사원번호와 이름이 일치하지 않습니다", Toast.LENGTH_SHORT).show()
+                            return@addOnSuccessListener
+                        }
+
+                        // 내 auth가 1인데 상대방의 auth가 0인 경우
+                        if (myAuth == 1 && targetAuth == 0) {
+                            Toast.makeText(requireContext(), "일반관리자는 최고관리자의 권한을 변경할 수 없습니다", Toast.LENGTH_SHORT).show()
+                            return@addOnSuccessListener
+                        }
+
+                        // 이미 같은 권한을 가진 경우
+                        if (targetAuth == newAuth) {
+                            val authName = if (newAuth == 0) "최고관리자" else "일반관리자"
+                            Toast.makeText(requireContext(), "이미 ${authName} 권한을 보유하고 있습니다", Toast.LENGTH_SHORT).show()
+                            return@addOnSuccessListener
+                        }
+
+                        // 권한 및 비밀번호 업데이트
+                        val updateData = mapOf(
+                            "auth" to newAuth,
+                            "Password" to password
+                        )
+
+                        db.collection("employees")
+                            .document(empNum)
+                            .set(updateData, SetOptions.merge())
+                            .addOnSuccessListener {
+                                val authName = if (newAuth == 0) "최고관리자" else "일반관리자"
+                                Toast.makeText(requireContext(), "${name}님에게 ${authName} 권한이 부여되었습니다", Toast.LENGTH_SHORT).show()
+                            }
+                            .addOnFailureListener { exception ->
+                                Toast.makeText(requireContext(), "권한 부여 실패: ${exception.message}", Toast.LENGTH_SHORT).show()
+                            }
+                    }
+                    .addOnFailureListener { exception ->
+                        Toast.makeText(requireContext(), "사원 정보 조회 실패: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    }
+            }
+            .addOnFailureListener { exception ->
+                Toast.makeText(requireContext(), "내 권한 정보 조회 실패: ${exception.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     override fun onDestroy() {
