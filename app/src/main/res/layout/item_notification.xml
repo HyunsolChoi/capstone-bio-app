@@ -83,16 +83,6 @@
             app:layout_constraintStart_toEndOf="@id/chipPriority"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <!-- 작성일 -->
-            <TextView
-                android:id="@+id/tvCreatedDate"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp"
-                android:textColor="@color/text_secondary"
-                tools:text="06-04 14:30" />
-
             <!-- 상태 -->
             <TextView
                 android:id="@+id/tvStatus"
@@ -109,31 +99,58 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp" />
+        </LinearLayout>
 
-            <!-- 수정 버튼 -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnEdit"
-                style="@style/Widget.MaterialComponents.Button.TextButton.Icon"
+            <LinearLayout
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="수정"
-                android:textSize="12sp"
-                app:icon="@drawable/ic_edit"
-                app:iconSize="16dp"
-                android:layout_marginEnd="4dp" />
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical"
+                app:layout_constraintTop_toBottomOf="@id/tvNotificationContent"
+                app:layout_constraintEnd_toEndOf="parent">
 
-            <!-- 삭제 버튼 -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDelete"
-                style="@style/Widget.MaterialComponents.Button.TextButton.Icon"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="삭제"
-                android:textSize="12sp"
-                android:textColor="@color/safety_danger"
-                app:icon="@drawable/ic_delete"
-                app:iconSize="16dp"
-                app:iconTint="@color/safety_danger" />
+                <!-- 작성일 -->
+                <TextView
+                    android:id="@+id/tvCreatedDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    tools:text="06-04 14:30" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!-- 수정 버튼 -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnEdit"
+                        style="@style/Widget.MaterialComponents.Button.TextButton.Icon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:text="수정"
+                        android:textSize="12sp"
+                        app:icon="@drawable/ic_edit"
+                        app:iconSize="16dp"
+                        android:layout_marginEnd="4dp" />
+
+                    <!-- 삭제 버튼 -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDelete"
+                        style="@style/Widget.MaterialComponents.Button.TextButton.Icon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:text="삭제"
+                        android:textSize="12sp"
+                        android:textColor="@color/safety_danger"
+                        app:icon="@drawable/ic_delete"
+                        app:iconSize="16dp"
+                        app:iconTint="@color/safety_danger" />
+
+                </LinearLayout>
 
         </LinearLayout>
 

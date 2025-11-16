@@ -49,7 +49,7 @@ class NotificationAdapter(
                 chipPriority.setBackgroundColor(priorityColor)
 
                 // 날짜 표시
-                val dateFormatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                val dateFormatter = SimpleDateFormat("YYYY-MM-dd HH:mm", Locale.getDefault())
                 tvCreatedDate.text = notification.createdAt?.toDate()?.let { dateFormatter.format(it) } ?: ""
 
                 // 상태 표시
