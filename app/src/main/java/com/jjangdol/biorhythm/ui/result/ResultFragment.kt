@@ -379,21 +379,13 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
 
         // 기록보기 버튼
         binding.btnHistory.setOnClickListener {
-            val args = Bundle().apply {
-                putInt("targetTab", R.id.historyFragment)
+            try {
+                findNavController().navigate(R.id.action_result_to_history)
+            } catch (e: Exception) {
+                Log.e("ResultFragment", "Navigation error", e)
+                Toast.makeText(requireContext(), "기록 화면으로 이동할 수 없습니다", Toast.LENGTH_SHORT).show()
             }
-
-            val navController = Navigation.findNavController(requireActivity(), R.id.navHostFragment)
-            navController.navigate(
-                R.id.mainFragment,
-                args,
-                navOptions {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-            )
         }
-
     }
 
     override fun onDestroyView() {
