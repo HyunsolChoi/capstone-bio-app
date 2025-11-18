@@ -47,6 +47,8 @@ import androidx.lifecycle.Lifecycle
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import com.google.firebase.firestore.SetOptions
+import android.widget.LinearLayout
+import android.widget.TextView
 
 
 class WeatherFragment : Fragment(R.layout.fragment_weather) {
@@ -58,6 +60,15 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     private val db = FirebaseFirestore.getInstance()
     private lateinit var functions: FirebaseFunctions
 
+    // stn 리스트
+    private var weatherStations: List<WeatherStation> = emptyList()
+
+    // 지역별 stn 데이터 클래스
+    data class WeatherStation(
+        val stnId: Int, // api 호출 시 보내줘야 할 지역정보 포맷
+        val longitude: Double,
+        val latitude: Double
+    )
 
     /** 사용자의 위치 권한 요청 → 응답에 따른 처리 */
     private val requestLocationPerms =
@@ -78,7 +89,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         }
 
     /** 사용자의 위치 권한이 확인되면 → 허용 시 위치 조회 */
-
     @SuppressLint("MissingPermission")
     private fun updateLocationName() {
         val fine = ContextCompat.checkSelfPermission(
@@ -102,7 +112,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
         fused.lastLocation
             .addOnSuccessListener { loc ->
-                // 먼저 View가 있는지 확인
                 if (_binding == null) {
                     Log.w("WeatherFragment", "View already destroyed, ignoring location update")
                     return@addOnSuccessListener
@@ -126,7 +135,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                             reverseGeocodeToShortName(loc.latitude, loc.longitude)
                         }
 
-                        // binding이 null이 아닐 때만 UI 업데이트
                         _binding?.let { binding ->
                             binding.tvLocation.text = name ?: "위치 정보 없음"
                         }
@@ -135,9 +143,21 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                         val (nx, ny) = convertToGrid(loc.latitude, loc.longitude)
                         getWeatherAndUpdateUI(nx, ny)
 
+                        // 가장 가까운 관측소 찾아서 기상 특보 조회
+                        val nearestStation = findNearestStation(loc.latitude, loc.longitude)
+                        if (nearestStation != null) {
+                            Log.d("WeatherDebug",
+                                "사용자 위치: (${loc.latitude}, ${loc.longitude})")
+                            Log.d("WeatherDebug",
+                                "선택된 관측소: STN_ID=${nearestStation.stnId}")
+
+                            getWeatherNews(nearestStation.stnId)
+                        } else {
+                            Log.w("WeatherDebug", "가까운 관측소를 찾을 수 없습니다")
+                        }
+
                     } catch (e: Exception) {
                         Log.e("WeatherDebug", "updateLocationName 내 코루틴 오류", e)
-                        // binding이 있을 때만 Toast 표시
                         if (_binding != null) {
                             Toast.makeText(
                                 requireContext(),
@@ -146,7 +166,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                             ).show()
                         }
                     } finally {
-                        // View가 여전히 활성 상태인지 확인
                         if (_binding != null) {
                             delay(50)
                             showLoading(false)
@@ -155,7 +174,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 }
             }
             .addOnFailureListener {
-                // binding이 있을 때만 Toast 표시
                 if (_binding != null) {
                     Toast.makeText(requireContext(), "위치 조회에 실패했습니다.", Toast.LENGTH_SHORT).show()
                     showLoading(false)
@@ -212,8 +230,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     /** Cloud Function을 호출하고 날씨 정보로 UI를 업데이트하는 함수 */
     private suspend fun getWeatherAndUpdateUI(nx: Int, ny: Int) {
         try {
-            Log.d("WeatherDebug", "getWeatherData 호출 시작: nx=$nx, ny=$ny")
-
             val result = functions
                 .getHttpsCallable("getWeatherData")
                 .call(mapOf("nx" to nx, "ny" to ny))
@@ -221,9 +237,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
 
             val outer = result.data as? Map<*, *>
             val weatherData = outer?.get("data") as? Map<String, String>
-
-            Log.d("WeatherDebug", "받은 원본 데이터: $outer")
-            Log.d("WeatherDebug", "실제 날씨 데이터: $weatherData")
 
             if (weatherData != null) {
                 binding.tvNowTemp.text = "${weatherData["T1H"] ?: "--"}°"
@@ -264,7 +277,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 loadGuidelinesFromFirebase(null)
             }
         } catch (e: Exception) {
-            Log.e("WeatherDebug", "getWeatherData 호출 실패", e)
+            Log.e("WeatherError", "getWeatherData 호출 실패", e)
             Toast.makeText(requireContext(), "날씨 정보를 가져오는 중 오류: ${e.message}", Toast.LENGTH_LONG)
                 .show()
             // 오류 발생 시에도 기본 지침 표시
@@ -651,6 +664,8 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         functions = Firebase.functions("asia-northeast3")
         fused = LocationServices.getFusedLocationProviderClient(requireContext())
 
+        loadWeatherStations()
+
         setupSwipeRefresh()
         //유저환영
         greetUser()
@@ -956,4 +971,230 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 Toast.makeText(requireContext(), "작업 종료 처리에 실패하였습니다.", Toast.LENGTH_SHORT).show()
             }
     }
+
+    /************* 기상정보문 조회 파트 ************/
+
+    /** 관측소 정보 로드 */
+    private fun loadWeatherStations() {
+        try {
+            val inputStream = resources.openRawResource(R.raw.stn_id_info)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+
+            val jsonArray = org.json.JSONArray(jsonString)
+            val stations = mutableListOf<WeatherStation>()
+
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                stations.add(
+                    WeatherStation(
+                        stnId = obj.getInt("stn_id"),
+                        longitude = obj.getDouble("lon"),
+                        latitude = obj.getDouble("lat")
+                    )
+                )
+            }
+
+            weatherStations = stations
+            Log.d("WeatherDebug", "관측소 데이터 로드 완료: ${weatherStations.size}개")
+        } catch (e: Exception) {
+            Log.e("WeatherDebug", "관측소 데이터 로드 실패", e)
+
+            if (_binding != null && isAdded) {
+                binding.weatherAlertContainer.removeAllViews()
+
+                val errorText = TextView(requireContext()).apply {
+                    text = "관측소 데이터를 불러올 수 없어 기상 특보를 조회할 수 없습니다"
+                    textSize = 14f
+                    setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark))
+                    gravity = android.view.Gravity.CENTER
+                    setPadding(0, 16, 0, 16)
+                }
+
+                binding.weatherAlertContainer.addView(errorText)
+            }
+        }
+    }
+
+    // Haversine 공식으로 두 좌표 간 거리 계산 (km)
+    private fun calculateDistance(
+        lat1: Double, lon1: Double,
+        lat2: Double, lon2: Double
+    ): Double {
+        val R = 6371.0 // 지구 반경 (km)
+
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(dLon / 2) * sin(dLon / 2)
+
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        return R * c
+    }
+
+    // 사용자 위치에서 가장 가까운 관측소 찾기
+    private fun findNearestStation(userLat: Double, userLon: Double): WeatherStation? {
+        if (weatherStations.isEmpty()) {
+            Log.w("WeatherDebug", "관측소 데이터가 비어있습니다")
+            return null
+        }
+
+        val nearest = weatherStations.minByOrNull { station ->
+            calculateDistance(userLat, userLon, station.latitude, station.longitude)
+        }
+
+        if (nearest != null) {
+            val distance = calculateDistance(userLat, userLon, nearest.latitude, nearest.longitude)
+            Log.d("WeatherDebug", "가장 가까운 관측소 - ID: ${nearest.stnId}, 거리: ${"%.2f".format(distance)}km")
+        }
+
+        return nearest
+    }
+
+    // 기상 정보문 functions 호출 함수
+    private suspend fun getWeatherNews(stnId: Int) {
+        try {
+            Log.d("WeatherNews", "getWeatherNews 호출 시작 - STN_ID: $stnId")
+
+            val result = functions
+                .getHttpsCallable("getWeatherNews")
+                .call(mapOf("STN_ID" to stnId))
+                .await()
+
+            val responseData = result.data as? Map<*, *>
+
+            if (responseData != null) {
+                Log.d("WeatherNews", "특보 데이터 수신 성공")
+
+                val data = responseData["data"] as? List<*>
+
+                if (data != null && data.isNotEmpty()) {
+                    displayWeatherAlerts(data)
+                } else {
+                    displayNoWeatherAlerts()
+                }
+            } else {
+                Log.w("WeatherNews", "특보 데이터가 없습니다")
+                displayNoWeatherAlerts()
+            }
+
+        } catch (e: Exception) {
+            Log.e("WeatherNews", "getWeatherNews 호출 실패", e)
+
+            // NO_DATA 에러는 정상 케이스로 처리
+            if (e.message?.contains("NO_DATA") == true) {
+                Log.d("WeatherNews", "해당 지역에 발효 중인 특보 없음")
+                if (_binding != null && isAdded) {
+                    displayNoWeatherAlerts()
+                }
+            } else {
+                if (_binding != null && isAdded) {
+                    displayWeatherAlertError()
+                }
+            }
+        }
+    }
+
+    private fun displayWeatherAlerts(data: List<*>) {
+        if (_binding == null) return
+
+        binding.weatherAlertContainer.removeAllViews()
+
+        data.forEach { item ->
+            val alertItem = item as? Map<*, *> ?: return@forEach
+            val text = alertItem["text"] as? String ?: return@forEach
+            val date = alertItem["date"]?.toString() ?: return@forEach
+
+            val formattedDate = formatAlertDate(date)
+
+            val alertView = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, 16, 0, 16)
+            }
+
+            val dateTextView = TextView(requireContext()).apply {
+                this.text = "발표시간: $formattedDate"
+                textSize = 13f
+                setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
+
+            val contentTextView = TextView(requireContext()).apply {
+                setText(text)
+                textSize = 14f
+                setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+                setPadding(0, 8, 0, 0)
+            }
+
+            alertView.addView(dateTextView)
+            alertView.addView(contentTextView)
+
+            val divider = View(requireContext()).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    (1 * resources.displayMetrics.density).toInt()
+                ).apply {
+                    setMargins(0, 16, 0, 0)
+                }
+                setBackgroundColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
+            }
+
+            binding.weatherAlertContainer.addView(alertView)
+            if (data.indexOf(item) < data.size - 1) {
+                binding.weatherAlertContainer.addView(divider)
+            }
+        }
+    }
+
+    private fun displayNoWeatherAlerts() {
+        if (_binding == null) return
+
+        binding.weatherAlertContainer.removeAllViews()
+
+        val noAlertText = TextView(requireContext()).apply {
+            text = "현재 발효 중인 기상 특보가 없습니다"
+            textSize = 14f
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 16, 0, 16)
+        }
+
+        binding.weatherAlertContainer.addView(noAlertText)
+    }
+
+    private fun displayWeatherAlertError() {
+        if (_binding == null) return
+
+        binding.weatherAlertContainer.removeAllViews()
+
+        val errorText = TextView(requireContext()).apply {
+            text = "기상 특보 정보를 불러올 수 없습니다"
+            textSize = 14f
+            setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 16, 0, 16)
+        }
+
+        binding.weatherAlertContainer.addView(errorText)
+    }
+
+    private fun formatAlertDate(date: String): String {
+        return try {
+            if (date.length >= 12) {
+                val year = date.substring(0, 4)
+                val month = date.substring(4, 6)
+                val day = date.substring(6, 8)
+                val hour = date.substring(8, 10)
+                val minute = date.substring(10, 12)
+                "$year.$month.$day $hour:$minute"
+            } else {
+                date
+            }
+        } catch (e: Exception) {
+            date
+        }
+    }
+    /*************** 여기까지 기상 정보문 코드 ***************/
 }
