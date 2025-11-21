@@ -166,7 +166,11 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         }
 
         // 수신자 그룹 버튼
-        binding.btnReceiver.setOnClickListener { openReceiverDropdownDialog() }
+        binding.btnReceiver.setOnClickListener {
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.hideSoftInputFromWindow(binding.root.windowToken, 0) //키보드 강제로 내림
+            openReceiverDropdownDialog()
+        }
 
         // 새로고침 버튼
         binding.btnRefreshNotifications.setOnClickListener {
