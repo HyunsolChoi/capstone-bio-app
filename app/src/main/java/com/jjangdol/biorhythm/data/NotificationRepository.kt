@@ -265,7 +265,7 @@ class NotificationRepository @Inject constructor() {
                         val myDeptRoot = currentUserDeptPath.last()
                         val displayDept = if (fullDept.startsWith(myDeptRoot)) {
                             val relative = fullDept.removePrefix(myDeptRoot).removePrefix("/")
-                            if (relative.isBlank()) "(동일 부서)" else relative
+                            if (relative.isBlank()) "" else relative
                         } else {
                             fullDept
                         }

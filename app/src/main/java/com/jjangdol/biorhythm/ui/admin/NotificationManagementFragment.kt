@@ -47,31 +47,80 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
     private companion object { const val DEPT_ALL = "전체" }
     private val selectedDeptPathGlobal: MutableList<String> = mutableListOf()
 
-    private val openDocuments = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments())
-    { uris ->
-        if (!uris.isNullOrEmpty()) {
-            addAttachments(uris)
+    private var cameraImageUri: Uri? = null
+    private var isForEdit = false
+
+    private val pickFiles = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val uris = mutableListOf<Uri>()
+
+            // 카메라로 찍은 경우
+            if (data == null || (data.data == null && data.clipData == null)) {
+                cameraImageUri?.let { uris.add(it) }
+            }
+            else {
+                // 단일 파일 선택
+                data.data?.let { uris.add(it) }
+
+                // 다중 파일 선택
+                data.clipData?.let { clipData ->
+                    for (i in 0 until clipData.itemCount) {
+                        clipData.getItemAt(i).uri?.let { uris.add(it) }
+                    }
+                }
+            }
+
+            if (uris.isNotEmpty()) {
+                if (isForEdit) {
+                    uris.forEach { uri ->
+                        try {
+                            requireContext().contentResolver.takePersistableUriPermission(
+                                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                        } catch (e: Exception) { Log.w("NotificationManagement", "권한 획득 실패 (카메라 이미지는 정상): ${e.message}") }
+                        editAttachmentUris.add(uri)
+                    }
+                    currentAttachmentStatusCallback?.invoke()
+                } else { addAttachments(uris) }
+            }
+
+            // 초기화
+            cameraImageUri = null
+            isForEdit = false
+        } else {
+            // 취소된 경우 초기화
+            cameraImageUri = null
+            isForEdit = false
         }
     }
 
-    private val openDocumentsForEdit = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments())
-    { uris ->
-        if (!uris.isNullOrEmpty()) {
-            uris.forEach { uri ->
-                requireContext().contentResolver.takePersistableUriPermission(
-                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-                editAttachmentUris.add(uri)
+    private val pickFilesForEdit = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val uris = mutableListOf<Uri>()
+
+            data?.data?.let { uris.add(it) }
+            data?.clipData?.let { clipData ->
+                for (i in 0 until clipData.itemCount) { clipData.getItemAt(i).uri?.let { uris.add(it) } }
             }
-            // 콜백으로 UI 업데이트
-            currentAttachmentStatusCallback?.invoke()
+
+            if (uris.isNotEmpty()) {
+                uris.forEach { uri ->
+                    requireContext().contentResolver.takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                    editAttachmentUris.add(uri)
+                }
+                currentAttachmentStatusCallback?.invoke()
+            }
         }
     }
 
     private var currentAttachmentStatusCallback: (() -> Unit)? = null
     private var currentReceiverStatusCallback: (() -> Unit)? = null
-    private var selectAuth: MutableSet<String> = mutableSetOf()
-    private var selectDept: MutableSet<String> = mutableSetOf()
+    private var selectAuth: MutableSet<String> = mutableSetOf(DEPT_ALL) //디폴트(default)값을 전체로
+    private var selectDept: MutableSet<String> = mutableSetOf(DEPT_ALL) //디폴트(default)값을 전체로
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -133,6 +182,49 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         }
     }
 
+    private fun createFilePickerIntent(): Intent {
+        // 카메라 인텐트
+        cameraImageUri = createImageUri()
+        val takePictureIntent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            cameraImageUri?.let { uri ->
+                putExtra(android.provider.MediaStore.EXTRA_OUTPUT, uri)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+
+        // 파일 선택 인텐트
+        val getContentIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "application/pdf"))
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        // Chooser 인텐트 생성 (카메라와 파일 선택 모두 표시)
+        val chooserIntent = Intent.createChooser(getContentIntent, "파일 선택")
+
+        // 카메라 Uri가 생성된 경우에만 카메라 옵션 추가
+        if (cameraImageUri != null) { chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(takePictureIntent)) }
+
+        return chooserIntent
+    }
+
+    private fun createImageUri(): Uri? {
+        return try {
+            val contentValues = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "biorhythm_${System.currentTimeMillis()}.jpg")
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Biorhythm")
+            }
+            requireContext().contentResolver.insert(
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                contentValues
+            )
+        } catch (e: Exception) { null }
+    }
+
     private fun setupClickListeners() {
         // 우선순위 선택
         binding.chipGroupPriority.setOnCheckedStateChangeListener { _, checkedIds ->
@@ -145,8 +237,8 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
 
         // 파일첨부 버튼
         binding.btnAddFile.setOnClickListener {
-            // MIME 타입 원하는 대로 제한 가능: image/*, application/pdf 등
-            openDocuments.launch(arrayOf("image/*", "application/pdf"))
+            isForEdit = false
+            pickFiles.launch(createFilePickerIntent())
         }
 
         // 필터 선택
@@ -166,7 +258,11 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         }
 
         // 수신자 그룹 버튼
-        binding.btnReceiver.setOnClickListener { openReceiverDropdownDialog() }
+        binding.btnReceiver.setOnClickListener {
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.hideSoftInputFromWindow(binding.root.windowToken, 0) //키보드 강제로 내림
+            openReceiverDropdownDialog()
+        }
 
         // 새로고침 버튼
         binding.btnRefreshNotifications.setOnClickListener {
@@ -218,7 +314,9 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         val title = binding.etNotificationTitle.text?.toString()?.trim() ?: ""
         val content = binding.etNotificationContent.text?.toString()?.trim() ?: ""
 
-        val auth: Int = (selectAuth.firstOrNull()?.toIntOrNull() ?: 2)
+        val auth: Int =
+            if (selectAuth.contains(DEPT_ALL)) { 2 } // "전체"일 경우 2 (모든 사용자)
+            else { selectAuth.firstOrNull()?.toIntOrNull() ?: 2 }
 
         when {
             title.isEmpty() -> {
@@ -539,7 +637,15 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
 
     private fun addAttachments(newUris: List<Uri>) {
         // 권한
-        newUris.forEach { uri -> requireContext().contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        newUris.forEach { uri ->
+            try {
+                requireContext().contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) { Log.w("NotificationManagement", "권한 획득 실패 (카메라 이미지는 정상): ${e.message}") }
+        }
+
         // 중복 제거 후 추가
         val current = selectedAttachmentUris.map { it.toString() }.toMutableSet()
         newUris.forEach { uri ->
@@ -560,6 +666,13 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         binding.chipGroupPriority.check(R.id.chipNormal)
         selectedPriority = NotificationPriority.NORMAL
         selectedAttachmentUris.clear()
+
+        // 수신자 정보도 디폴트(default)값으로 리셋
+        selectAuth.clear()
+        selectAuth.add(DEPT_ALL)
+        selectDept.clear()
+        selectDept.add(DEPT_ALL)
+        selectedDeptPathGlobal.clear()
     }
 
     private fun showNotificationDetailDialog(notification: Notification) {
@@ -666,7 +779,10 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         // 첨부파일 추가
         val addFileButton = com.google.android.material.button.MaterialButton(requireContext()).apply {
             text = "첨부파일 추가"
-            setOnClickListener { openDocumentsForEdit.launch(arrayOf("image/*", "application/pdf")) }
+            setOnClickListener {
+                isForEdit = true
+                pickFiles.launch(createFilePickerIntent())
+            }
         }
         layout.addView(addFileButton)
 
