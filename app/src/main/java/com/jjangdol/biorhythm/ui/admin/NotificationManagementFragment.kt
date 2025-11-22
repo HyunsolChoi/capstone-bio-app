@@ -70,8 +70,8 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
 
     private var currentAttachmentStatusCallback: (() -> Unit)? = null
     private var currentReceiverStatusCallback: (() -> Unit)? = null
-    private var selectAuth: MutableSet<String> = mutableSetOf()
-    private var selectDept: MutableSet<String> = mutableSetOf()
+    private var selectAuth: MutableSet<String> = mutableSetOf(DEPT_ALL) //디폴트(default)값을 전체로
+    private var selectDept: MutableSet<String> = mutableSetOf(DEPT_ALL) //디폴트(default)값을 전체로
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -222,7 +222,9 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         val title = binding.etNotificationTitle.text?.toString()?.trim() ?: ""
         val content = binding.etNotificationContent.text?.toString()?.trim() ?: ""
 
-        val auth: Int = (selectAuth.firstOrNull()?.toIntOrNull() ?: 2)
+        val auth: Int =
+            if (selectAuth.contains(DEPT_ALL)) { 2 } // "전체"일 경우 2 (모든 사용자)
+            else { selectAuth.firstOrNull()?.toIntOrNull() ?: 2 }
 
         when {
             title.isEmpty() -> {
@@ -564,6 +566,13 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         binding.chipGroupPriority.check(R.id.chipNormal)
         selectedPriority = NotificationPriority.NORMAL
         selectedAttachmentUris.clear()
+
+        // 수신자 정보도 디폴트(default)값으로 리셋
+        selectAuth.clear()
+        selectAuth.add(DEPT_ALL)
+        selectDept.clear()
+        selectDept.add(DEPT_ALL)
+        selectedDeptPathGlobal.clear()
     }
 
     private fun showNotificationDetailDialog(notification: Notification) {
