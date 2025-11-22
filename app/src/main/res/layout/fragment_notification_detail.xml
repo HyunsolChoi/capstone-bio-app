@@ -102,29 +102,6 @@
 
             </LinearLayout>
 
-            <!-- 첨부파일 라벨 -->
-            <TextView
-                android:id="@+id/tvAttachmentsLabel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp"
-                android:text="첨부파일"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroupAttachments"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:visibility="gone"
-                tools:visibility="visible">
-                <!-- 칩들이 동적으로 추가됨 -->
-            </com.google.android.material.chip.ChipGroup>
-
             <!-- 미리보기 섹션 -->
             <LinearLayout
                 android:id="@+id/attachmentPreviewContainer"

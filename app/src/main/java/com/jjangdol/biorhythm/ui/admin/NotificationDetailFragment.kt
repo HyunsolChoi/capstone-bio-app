@@ -245,30 +245,8 @@ class NotificationDetailFragment : Fragment(R.layout.fragment_notification_detai
 
     private fun setupAttachments(urls: List<String>) {
         if (urls.isEmpty()) {
-            binding.chipGroupAttachments.visibility = View.GONE
             binding.attachmentPreviewContainer.visibility = View.GONE
-            binding.tvAttachmentsLabel.visibility = View.GONE
             return
-        }
-
-        binding.tvAttachmentsLabel.visibility = View.VISIBLE
-        binding.chipGroupAttachments.visibility = View.VISIBLE
-        binding.chipGroupAttachments.removeAllViews()
-
-        // 첨부파일 칩 추가
-        urls.forEachIndexed { idx, url ->
-            val chip = com.google.android.material.chip.Chip(requireContext()).apply {
-                text = buildString {
-                    append("첨부 ")
-                    append(idx + 1)
-                    val name = guessFileName(url)
-                    if (name.isNotBlank() && name != "attachment") append("  ($name)")
-                }
-                isClickable = true
-                isCheckable = false
-                setOnClickListener { openAttachmentUrl(url) }
-            }
-            binding.chipGroupAttachments.addView(chip)
         }
 
         // 미리보기
