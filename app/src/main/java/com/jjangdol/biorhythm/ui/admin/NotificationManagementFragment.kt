@@ -47,10 +47,46 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
     private companion object { const val DEPT_ALL = "전체" }
     private val selectedDeptPathGlobal: MutableList<String> = mutableListOf()
 
-    private val openDocuments = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments())
-    { uris ->
-        if (!uris.isNullOrEmpty()) {
-            addAttachments(uris)
+    private val pickMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+        if (uris.isNotEmpty()) { addAttachments(uris) }
+    }
+
+    private val pickFiles = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val uris = mutableListOf<Uri>()
+
+            // 단일 파일 선택
+            data?.data?.let { uris.add(it) }
+
+            // 다중 파일 선택
+            data?.clipData?.let { clipData ->
+                for (i in 0 until clipData.itemCount) { clipData.getItemAt(i).uri?.let { uris.add(it) } }
+            }
+
+            if (uris.isNotEmpty()) { addAttachments(uris) }
+        }
+    }
+
+    private val pickFilesForEdit = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val uris = mutableListOf<Uri>()
+
+            data?.data?.let { uris.add(it) }
+            data?.clipData?.let { clipData ->
+                for (i in 0 until clipData.itemCount) { clipData.getItemAt(i).uri?.let { uris.add(it) } }
+            }
+
+            if (uris.isNotEmpty()) {
+                uris.forEach { uri ->
+                    requireContext().contentResolver.takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                    editAttachmentUris.add(uri)
+                }
+                currentAttachmentStatusCallback?.invoke()
+            }
         }
     }
 
@@ -133,6 +169,25 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         }
     }
 
+    private fun createFilePickerIntent(): Intent {
+        // 파일 선택 인텐트
+        val getContentIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "application/pdf"))
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+
+        // 카메라 인텐트
+        val takePictureIntent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
+
+        // Chooser 인텐트 생성 (카메라와 파일 선택 모두 표시)
+        val chooserIntent = Intent.createChooser(getContentIntent, "파일 선택")
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(takePictureIntent))
+
+        return chooserIntent
+    }
+
     private fun setupClickListeners() {
         // 우선순위 선택
         binding.chipGroupPriority.setOnCheckedStateChangeListener { _, checkedIds ->
@@ -144,10 +199,7 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         }
 
         // 파일첨부 버튼
-        binding.btnAddFile.setOnClickListener {
-            // MIME 타입 원하는 대로 제한 가능: image/*, application/pdf 등
-            openDocuments.launch(arrayOf("image/*", "application/pdf"))
-        }
+        binding.btnAddFile.setOnClickListener { pickFiles.launch(createFilePickerIntent()) }
 
         // 필터 선택
         binding.chipGroupFilter.setOnCheckedStateChangeListener { _, checkedIds ->
@@ -679,7 +731,7 @@ class NotificationManagementFragment : Fragment(R.layout.fragment_notification_m
         // 첨부파일 추가
         val addFileButton = com.google.android.material.button.MaterialButton(requireContext()).apply {
             text = "첨부파일 추가"
-            setOnClickListener { openDocumentsForEdit.launch(arrayOf("image/*", "application/pdf")) }
+            setOnClickListener { pickFilesForEdit.launch(createFilePickerIntent()) }
         }
         layout.addView(addFileButton)
 
