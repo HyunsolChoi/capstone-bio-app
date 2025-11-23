@@ -45,8 +45,15 @@ import java.time.format.DateTimeFormatter
 import com.google.firebase.firestore.SetOptions
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.fragment.app.viewModels
+import com.jjangdol.biorhythm.vm.UserNotificationViewModel
+import kotlinx.coroutines.flow.collectLatest
+import androidx.navigation.fragment.findNavController
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.jjangdol.biorhythm.data.model.NotificationPriority
+import dagger.hilt.android.AndroidEntryPoint
 
-
+@AndroidEntryPoint
 class HomeFragment : Fragment(R.layout.fragment_weather) {
 
     private var _binding: FragmentWeatherBinding? = null
@@ -55,6 +62,9 @@ class HomeFragment : Fragment(R.layout.fragment_weather) {
     private var currentLocCts: CancellationTokenSource? = null
     private val db = FirebaseFirestore.getInstance()
     private lateinit var functions: FirebaseFunctions
+
+    // 알림 확인을 위한 vm
+    private val notificationViewModel: UserNotificationViewModel by viewModels()
 
     // stn 리스트
     private var weatherStations: List<WeatherStation> = emptyList()
@@ -537,6 +547,10 @@ class HomeFragment : Fragment(R.layout.fragment_weather) {
         greetUser()
         // 초기 로딩 UI 설정
         setNowSkeleton(true)
+
+        // 알림 확인 카드
+        setupNotificationCard()
+
         // 현재 위치명 시도
         updateLocationName()
 
@@ -1063,4 +1077,89 @@ class HomeFragment : Fragment(R.layout.fragment_weather) {
         }
     }
     /*************** 여기까지 기상 정보문 코드 ***************/
+
+    /**
+     * 알림 확인 코드 부분 시작 ===================================================
+     * */
+    private fun setupNotificationCard() {
+        // 읽지 않은 알림 개수 관찰
+        viewLifecycleOwner.lifecycleScope.launch {
+            notificationViewModel.unreadCount.collectLatest { count ->
+                updateNotificationCard(count)
+            }
+        }
+
+        // 우선순위별 배지 관찰 (추가)
+        viewLifecycleOwner.lifecycleScope.launch {
+            notificationViewModel.unreadNotificationsByPriority.collectLatest { priorityMap ->
+                updateNotificationBadges(priorityMap)
+            }
+        }
+
+        // 알림 카드 전체 클릭 시 NotificationFragment로 이동
+        binding.cardNotification.setOnClickListener {
+            try {
+                val bottomNav = requireActivity().findViewById<BottomNavigationView>(R.id.bottomNav)
+                bottomNav?.selectedItemId = R.id.notificationFragment
+            } catch (e: Exception) {
+                Log.e("HomeFragment-debug", "Navigation error: ${e.message}", e)
+                Toast.makeText(requireContext(), "에러: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun updateNotificationCard(unreadCount: Int) {
+        binding.apply {
+            if (unreadCount > 0) {
+                // 읽지 않은 알림이 있으면 카드 표시
+                cardNotification.visibility = View.VISIBLE
+                tvNotificationSummary.text = "읽지 않은 알림 ${unreadCount}개"
+            } else {
+                // 읽지 않은 알림이 없으면 카드 숨김
+                cardNotification.visibility = View.GONE
+            }
+        }
+    }
+
+    // 새로운 함수 추가
+    private fun updateNotificationBadges(priorityMap: Map<NotificationPriority, Int>) {
+        binding.apply {
+            val highCount = priorityMap[NotificationPriority.HIGH] ?: 0
+            val normalCount = priorityMap[NotificationPriority.NORMAL] ?: 0
+            val lowCount = priorityMap[NotificationPriority.LOW] ?: 0
+
+            // 긴급
+            chipHighBadge.apply {
+                if (highCount > 0) {
+                    visibility = View.VISIBLE
+                    text = "긴급 $highCount"
+                } else {
+                    visibility = View.GONE
+                }
+            }
+
+            // 일반
+            chipNormalBadge.apply {
+                if (normalCount > 0) {
+                    visibility = View.VISIBLE
+                    text = "일반 $normalCount"
+                } else {
+                    visibility = View.GONE
+                }
+            }
+
+            // 안내
+            chipLowBadge.apply {
+                if (lowCount > 0) {
+                    visibility = View.VISIBLE
+                    text = "안내 $lowCount"
+                } else {
+                    visibility = View.GONE
+                }
+            }
+        }
+    }
+    /**
+     * 여기까지 알림 관련 코드
+     * */
 }

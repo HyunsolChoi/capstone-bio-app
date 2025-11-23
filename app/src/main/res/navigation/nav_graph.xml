@@ -265,6 +265,11 @@
         android:name="com.jjangdol.biorhythm.ui.weather.HomeFragment"
         android:label="기상 정보"
         tools:layout="@layout/fragment_weather">
+
+        <action
+            android:id="@+id/action_HomeFragment_to_notificationFragment"
+            app:destination="@id/notificationFragment" />
+
         <action
             android:id="@+id/action_HomeFragment_to_newAdminFragment"
             app:destination="@id/newAdminFragment" />
