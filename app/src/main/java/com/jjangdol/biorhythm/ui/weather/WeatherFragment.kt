@@ -38,12 +38,9 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 import kotlin.math.*
 import com.google.firebase.firestore.Source
-import android.text.InputFilter
 import android.text.InputType
 import android.text.method.DigitsKeyListener
-import android.view.LayoutInflater
 import android.widget.FrameLayout
-import androidx.lifecycle.Lifecycle
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import com.google.firebase.firestore.SetOptions
@@ -291,61 +288,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         }
     }
 
-    /** Firebase에서 가져온 지침을 화면에 표시 */
-    private fun displayGuidelinesFromFirebase(guidelines: String, riskLevel: String, temp: Double?) {
-        binding.tvGuidelineTitle.text = "안전 지침"
-
-        // 온도 정보 포함한 부제목
-        val subtitle = when {
-            temp == null -> riskLevel
-            temp >= 31 -> "폭염 주의 ($riskLevel)"
-            temp <= -6 -> "한파 주의 ($riskLevel)"
-            else -> riskLevel
-        }
-        binding.tvGuidelineSubtitle.text = subtitle
-
-        // 기존 항목 비우기
-        binding.guidelineContainer.removeAllViews()
-
-        // guidelines 문자열을 " • " 기준으로 분리
-        val items = guidelines
-            .split("•")  // • 기준으로 분리
-            .map { it.trim() }  // 앞뒤 공백 제거
-            .filter { it.isNotBlank() }  // 빈 항목 제거
-
-        val pad = (8 * resources.displayMetrics.density).toInt()
-
-        items.forEach { line ->
-            val tv = android.widget.TextView(requireContext()).apply {
-                text = "•  $line"
-
-                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
-                setTextColor(
-                    ContextCompat.getColor(
-                        requireContext(),
-                        R.color.text_primary
-                    )
-                )
-
-                // 상/하 패딩
-                setPadding(0, pad / 2, 0, pad / 2)
-
-                // 두 번째 줄부터 들여쓰기 적용
-                val hangingIndent = (16 * resources.displayMetrics.density).toInt()
-                val spannable = android.text.SpannableString(text)
-                spannable.setSpan(
-                    android.text.style.LeadingMarginSpan.Standard(0, hangingIndent),
-                    0,
-                    text.length,
-                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                setText(spannable)
-            }
-
-            binding.guidelineContainer.addView(tv)
-        }
-    }
-
     /** 날씨 코드(SKY, PTY)를 한글 날씨 상태로 변환하는 도우미 함수 */
     private fun mapWeatherCondition(sky: String?, pty: String?): Pair<String, Int> {
         return when (pty) {
@@ -424,26 +366,26 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
     /** 위경도를 "서울특별시 종로구 00동" 식으로 변환 (없으면 null) */
     private fun reverseGeocodeToShortName(lat: Double, lon: Double): String? {
         return try {
-            if (!Geocoder.isPresent()) return null //Geocoder 사용 가능한지 확인
+            if (!Geocoder.isPresent()) return null
 
             val g = Geocoder(requireContext(), Locale.KOREA)
-            val list: List<Address> = g.getFromLocation(lat, lon, 1) ?: emptyList() //1건만 가져옴
+            val list: List<Address> = g.getFromLocation(lat, lon, 1) ?: emptyList()
 
             if (list.isEmpty()) return null
             val a = list[0]
 
-            val wiedarea = a.locality ?: a.adminArea       // 시/도 (서울특별시, 전주시)
-            val narrowarea = a.subLocality ?: a.subAdminArea // 구 (종로구, 덕진구)
+            val wiedarea = a.locality ?: a.adminArea       // 시/도
+            val narrowarea = a.subLocality ?: a.subAdminArea // 구/군
 
-            // 동/도로명/지형지물 이름 추출
-            val thoroughfare = a.thoroughfare // 도로명 주소 또는 동 이름 (e.g., "금암동", "세종대로")
-            val featureName = a.featureName   // 지형/건물 이름 (e.g., "경복궁", "금암동")
-
+            // 동/읍/면 정보 추출
             val detailarea = when {
-                // thoroughfare에 유효한 문자열이 있고 숫자가 아니라면 (주소 정보 방지)
-                thoroughfare?.any { it.isLetter() } == true -> thoroughfare
-                // 그렇지 않다면 featureName을 사용
-                else -> featureName
+                // thoroughfare에 동/읍/면이 포함되어 있으면 사용
+                a.thoroughfare?.let { it.contains("동") || it.contains("읍") || it.contains("면") } == true
+                    -> a.thoroughfare
+                // subThoroughfare에 동/읍/면이 포함되어 있으면 사용
+                a.subThoroughfare?.let { it.contains("동") || it.contains("읍") || it.contains("면") } == true
+                    -> a.subThoroughfare
+                else -> null
             }
 
             when {
@@ -453,11 +395,11 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 !wiedarea.isNullOrBlank() && !narrowarea.isNullOrBlank() ->
                     "$wiedarea $narrowarea"
 
-                !wiedarea.isNullOrBlank() && !detailarea.isNullOrBlank() -> // 구 정보가 없을 경우 대비
+                !wiedarea.isNullOrBlank() && !detailarea.isNullOrBlank() ->
                     "$wiedarea $detailarea"
 
                 !wiedarea.isNullOrBlank() -> wiedarea
-                else -> null // 모든 정보가 없을 경우
+                else -> null
             }
         } catch (_: Exception) {
             null
