@@ -263,25 +263,16 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                         // 10~5월은 체감온도 미표시
                         binding.tvNowDesc.text = condition
                     }
-
-                    // ✨ 온도 기반으로 Firebase에서 지침 가져오기
-                    loadGuidelinesFromFirebase(temp)
                 } else {
                     binding.tvNowDesc.text = "$condition · 체감온도 --°"
-                    // 온도를 알 수 없으면 기본 지침 표시
-                    loadGuidelinesFromFirebase(null)
                 }
             } else {
                 Toast.makeText(requireContext(), "날씨 정보를 받아오지 못했습니다.", Toast.LENGTH_SHORT).show()
-                // 날씨 정보 실패 시에도 기본 지침 표시
-                loadGuidelinesFromFirebase(null)
             }
         } catch (e: Exception) {
             Log.e("WeatherError", "getWeatherData 호출 실패", e)
             Toast.makeText(requireContext(), "날씨 정보를 가져오는 중 오류: ${e.message}", Toast.LENGTH_LONG)
                 .show()
-            // 오류 발생 시에도 기본 지침 표시
-            loadGuidelinesFromFirebase(null)
         }
     }
 
@@ -298,41 +289,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             temp <= -6 -> "level_minus6"
             else -> "level_0"
         }
-    }
-
-    /** Firebase에서 온도 기반 지침 가져오기 */
-    private fun loadGuidelinesFromFirebase(temp: Double?) {
-        val level = determineGuidelineLevel(temp)
-
-        Log.d("WeatherDebug", "온도: $temp, 선택된 레벨: $level")
-
-        db.collection("SafeGuideline")
-            .document(level)
-            .get()
-            .addOnSuccessListener { document ->
-                if (!isAdded || _binding == null) return@addOnSuccessListener
-
-                if (document.exists()) {
-                    val guidelines = document.getString("guidelines")
-                    val riskLevel = document.getString("riskLevel") ?: "보통"
-
-                    if (!guidelines.isNullOrBlank()) {
-                        displayGuidelinesFromFirebase(guidelines, riskLevel, temp)
-                    } else {
-                        // guidelines가 비어있으면 기본값 표시
-                        loadDefaultGuidelines()
-                    }
-                } else {
-                    Log.w("WeatherDebug", "문서 '$level'이 존재하지 않음. 기본 지침 표시")
-                    loadDefaultGuidelines()
-                }
-            }
-            .addOnFailureListener { e ->
-                Log.e("WeatherDebug", "Firebase 지침 로드 실패", e)
-                if (isAdded && _binding != null) {
-                    loadDefaultGuidelines()
-                }
-            }
     }
 
     /** Firebase에서 가져온 지침을 화면에 표시 */
@@ -386,37 +342,6 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                 setText(spannable)
             }
 
-            binding.guidelineContainer.addView(tv)
-        }
-    }
-
-    /** 기본 지침 표시 (Firebase 실패 시 대체) */
-    private fun loadDefaultGuidelines() {
-        binding.tvGuidelineTitle.text = "안전 지침"
-        binding.tvGuidelineSubtitle.text = "일반 작업 안전 수칙"
-
-        binding.guidelineContainer.removeAllViews()
-
-        val defaultItems = arrayOf(
-            "작업 전 안전장비를 착용하세요",
-            "주변 환경을 확인하고 작업하세요",
-            "무리한 작업은 피하고 적절히 휴식하세요",
-            "이상 증상 발생 시 즉시 보고하세요"
-        )
-
-        val pad = (8 * resources.displayMetrics.density).toInt()
-        defaultItems.forEach { line ->
-            val tv = android.widget.TextView(requireContext()).apply {
-                text = "• $line"
-                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
-                setTextColor(
-                    androidx.core.content.ContextCompat.getColor(
-                        requireContext(),
-                        R.color.text_primary
-                    )
-                )
-                setPadding(0, pad / 2, 0, pad / 2)
-            }
             binding.guidelineContainer.addView(tv)
         }
     }
