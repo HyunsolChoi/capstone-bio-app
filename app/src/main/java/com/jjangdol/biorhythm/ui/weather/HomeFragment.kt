@@ -28,7 +28,6 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import android.widget.EditText
 import androidx.navigation.findNavController
-import androidx.navigation.fragment.findNavController
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.ktx.functions
@@ -48,7 +47,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 
-class WeatherFragment : Fragment(R.layout.fragment_weather) {
+class HomeFragment : Fragment(R.layout.fragment_weather) {
 
     private var _binding: FragmentWeatherBinding? = null
     private val binding get() = _binding!!
@@ -110,7 +109,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
         fused.lastLocation
             .addOnSuccessListener { loc ->
                 if (_binding == null) {
-                    Log.w("WeatherFragment", "View already destroyed, ignoring location update")
+                    Log.w("HomeFragment", "View already destroyed, ignoring location update")
                     return@addOnSuccessListener
                 }
 
@@ -413,7 +412,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
             android.R.color.holo_orange_light,
             android.R.color.holo_red_light
         )
-        // todo: 이 색상 코드를 삽입해야 로그인 이후에 weatherFragment를 입장한 후에 앱이 강제종료가 안 되는데, 이유는 모르겠음
+        // todo: 이 색상 코드를 삽입해야 로그인 이후에 HomeFragment를 입장한 후에 앱이 강제종료가 안 되는데, 이유는 모르겠음
 
         binding.swipeRefreshLayout.setOnRefreshListener {
             // 새로고침 시 실행할 작업
@@ -630,7 +629,7 @@ class WeatherFragment : Fragment(R.layout.fragment_weather) {
                         val mainNavController = requireActivity().findNavController(R.id.navHostFragment)
                         mainNavController.navigate(R.id.action_main_to_newAdmin)
                     } catch (e: Exception) {
-                        Log.e("WeatherFragment", "Navigation error", e)
+                        Log.e("HomeFragment", "Navigation error", e)
                         Toast.makeText(requireContext(), "관리자 페이지로 이동할 수 없습니다", Toast.LENGTH_SHORT).show()
                     }
                 } else {
