@@ -103,11 +103,6 @@ class PupilMeasurementFragment : BaseMeasurementFragment() {
             startMeasurement()
         }
 
-        // todo: 배포 시에는 건너뛰기 항목 모두 제거 예정
-        binding.btnSkip.setOnClickListener {
-            skipMeasurement()
-        }
-
         binding.btnRetry.setOnClickListener {
             resetMeasurement()
             startMeasurement()
