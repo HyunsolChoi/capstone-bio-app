@@ -422,7 +422,6 @@ class HomeFragment : Fragment(R.layout.fragment_weather) {
             android.R.color.holo_orange_light,
             android.R.color.holo_red_light
         )
-        // todo: 이 색상 코드를 삽입해야 로그인 이후에 HomeFragment를 입장한 후에 앱이 강제종료가 안 되는데, 이유는 모르겠음
 
         binding.swipeRefreshLayout.setOnRefreshListener {
             // 새로고침 시 실행할 작업
