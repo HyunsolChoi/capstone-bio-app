@@ -133,31 +133,36 @@ app/
 * Node.js가 사용자의 PC에 설치되있어야 합니다.
 
 - Firebase 컬렉션에 인사정보 csv 파일을 일괄적으로 업로드 가능합니다.
-    1. c드라이브에 업로드용 폴더를 생성합니다. ex) csv_upload
+1. c드라이브에 업로드용 폴더를 생성합니다. ex) csv_upload
 
-    2. 해당 폴더에 csv 파일, upload.js, serviceAccountKey.json을 넣습니다.
-       2.1. serviceAccountKey.json 파일은 Firebase -> 프로젝트 설정 -> 서비스 계정 -> 새 비공개 키 생성 버튼을 누르면 다운로드 됩니다.
-       2.2. [upload.js 다운로드 받기](./upload.js)
+2. 해당 폴더에 csv 파일, upload.js, serviceAccountKey.json을 넣습니다.
 
-    3. 안드로이드 스튜디오 터미널 -> cd 이용해서 해당 폴더로 경로를 설정합니다.
+   2.1. serviceAccountKey.json 파일은 Firebase -> 프로젝트 설정 -> 서비스 계정 -> 새 비공개 키 생성 버튼을 누르면 다운로드 됩니다.
+
+
+   2.2. [upload.js 다운로드 받기](./upload.js)
+
+3. 안드로이드 스튜디오 터미널 -> cd 이용해서 해당 폴더로 경로를 설정합니다.
    ```bash
    cd csv_upload
    ```
 
-    4. npm init -y로 package.json 파일 생성, 업로드 폴더에 생성됐는지 확인합니다.
+4. npm init -y로 package.json 파일 생성, 업로드 폴더에 생성됐는지 확인합니다.
    ```bash
    npm init -y
    ```
 
-    5. npm install firebase-admin csv-parser를 입력합니다.
+5. npm install firebase-admin csv-parser를 입력합니다.
    ```bash
    npm install firebase-admin csv-parser
    ```
 
-    6. 이후, node upload.js를 입력하면 컬렉션에 업로드 됩니다.
+6. 이후, node upload.js를 입력하면 컬렉션에 업로드 됩니다.
    ```bash
    node upload.js
    ```
+
+---
 
 ## 참고
 
