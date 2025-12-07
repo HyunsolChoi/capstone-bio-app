@@ -64,13 +64,20 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                         // 부서 정보 저장 처리
                         when (departments) {
                             is List<*> -> {
+                                Log.d("LoginDebug", "dept 타입: List -> ${departments}")
                                 // 배열 형태면 JSON 문자열로 변환해서 저장
                                 val deptString = departments.joinToString(",")
+                                Log.d("LoginDebug", "deptString 변환 결과: $deptString")
                                 editor.putString("dept", deptString)
                             }
                             is String -> {
+                                Log.d("LoginDebug", "dept 타입: String -> $departments")
                                 // "미등록" 등 문자열 형태 그대로 저장
                                 editor.putString("dept", departments)
+                            }
+
+                            else -> {
+                                Log.w("LoginDebug", "dept 타입 알 수 없음: ${departments?.javaClass?.name}, 값=$departments")
                             }
                         }
 

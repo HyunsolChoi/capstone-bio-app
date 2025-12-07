@@ -1372,7 +1372,7 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
         _binding = null
     }
 
-    // 작업 시작 시간을 Firebase에 업로드. WorkTime/날짜의 필드로 사번 : { StartTime : "시간" } 업로드
+    // 작업 시작 시간을 Firebase에 업로드. 단, StartTime이 이미 있으면 덮어쓰지 않음
     private fun saveStartTimeToFirestore() {
         val db = FirebaseFirestore.getInstance()
         val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
@@ -1380,24 +1380,41 @@ class PPGMeasurementFragment : BaseMeasurementFragment() {
 
         if (empNum.isNullOrEmpty()) return
 
-        // 현재 날짜와 시간 계산
-        val currentDate = LocalDate.now().toString() // 예: "2025-11-08"
+        val currentDate = LocalDate.now().toString()
         val currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 
-        // Firestore에 저장할 데이터
-        val data = mapOf(
-            empNum to mapOf("StartTime" to currentTime)
-        )
-
-        // Firestore 업로드 (merge 옵션으로 다른 사번 데이터 보존)
+        // 해당 사번의 StartTime 존재 여부 확인
         db.collection("WorkTime")
             .document(currentDate)
-            .set(data, SetOptions.merge())
-            .addOnSuccessListener {
-                Toast.makeText(requireContext(), "작업이 정상적으로 시작되었습니다.", Toast.LENGTH_SHORT).show()
+            .get()
+            .addOnSuccessListener { document ->
+                val empData = document.get(empNum) as? Map<*, *>
+                val existingStart = empData?.get("StartTime") as? String
+
+                // 이미 StartTime이 있으면 저장하지 않고 종료
+                if (!existingStart.isNullOrEmpty()) {
+                    Log.d("WorkTime", "작업 시작 시간 존재, 저장 생략")
+                    return@addOnSuccessListener
+                }
+
+                // StartTime이 없는 경우에만 저장
+                val data = mapOf(
+                    empNum to mapOf("StartTime" to currentTime)
+                )
+
+                db.collection("WorkTime")
+                    .document(currentDate)
+                    .set(data, SetOptions.merge())
+                    .addOnSuccessListener {
+                        Toast.makeText(requireContext(), "작업이 정상적으로 시작되었습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(requireContext(), "작업 시작 처리에 실패하였습니다.", Toast.LENGTH_SHORT).show()
+                    }
             }
             .addOnFailureListener {
-                Toast.makeText(requireContext(), "작업 시작 처리에 실패하였습니다.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "작업 시작 정보를 확인할 수 없습니다.", Toast.LENGTH_SHORT).show()
             }
     }
+
 }

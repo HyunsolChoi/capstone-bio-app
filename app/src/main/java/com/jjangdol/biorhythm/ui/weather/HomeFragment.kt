@@ -764,7 +764,6 @@ class HomeFragment : Fragment(R.layout.fragment_weather) {
 
 
     // 작업 종료시간을 Firebase에 업로드. WorkTime/날짜의 필드로 사번 : { EndTime : "시간" } 업로드
-    // TODO : 작업 시작 처리가 안됐을 경우(생체 측정 검사를 아직 안 받은 경우) 작업 종료 버튼을 비활성화 or 클릭했을때 종료 처리가 안돼도록 할 예정, 그리고 작업 종료 버튼을 이미 눌렀는데 또 누른 경우 EndTime을 업데이트 하지 못하도록 할 예정.
     // 작업 시작 여부에 따른 버튼 클릭 이벤트
     private fun saveEndTimeToFirestore() {
         val db = FirebaseFirestore.getInstance()
