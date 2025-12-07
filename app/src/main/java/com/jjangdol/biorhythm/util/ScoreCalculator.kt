@@ -26,7 +26,7 @@ object ScoreCalculator {
             // 선택지 번호는 1부터 시작하므로 index 보정
             val selectedWeight = optionWeights.getOrNull(selected - 1) ?: 0
 
-            (questionWeight * (selectedWeight / totalQuestionWeight.toDouble())).toInt()
+            questionWeight * selectedWeight
         }
     }
 
