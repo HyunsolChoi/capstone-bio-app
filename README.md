@@ -140,7 +140,7 @@ app/
    2.1. serviceAccountKey.json 파일은 Firebase -> 프로젝트 설정 -> 서비스 계정 -> 새 비공개 키 생성 버튼을 누르면 다운로드 됩니다.
 
 
-   2.2. [upload.js 다운로드 받기](./upload.js)
+   2.2. [upload.js](./upload.js)
 
 3. 안드로이드 스튜디오 터미널 -> cd 이용해서 해당 폴더로 경로를 설정합니다.
    ```bash

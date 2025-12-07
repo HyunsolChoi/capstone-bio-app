@@ -24,14 +24,14 @@ fs.createReadStream(path.join(__dirname, "JGS_3000_test.csv"))
     results.push(row);
   })
   .on("end", async () => {
-    console.log("✅ CSV 읽기 완료, 업로드 시작...");
+    console.log("CSV 읽기 완료, 업로드 시작...");
 
     for (const row of results) {
       const id = row["ID"]?.trim() || row["﻿ID"]?.trim(); // BOM문자 대비
       const name = row["Name"]?.trim();
 
       if (!id || !name) {
-        console.warn("⚠️ 건너뜀 (ID/Name 없음):", row);
+        console.warn("건너뜀 (ID/Name 없음):", row);
         continue;
       }
 
@@ -40,11 +40,11 @@ fs.createReadStream(path.join(__dirname, "JGS_3000_test.csv"))
         await db.collection("employees").doc(id).set({
           Name: name
         });
-        console.log(`✅ 업로드 성공: ${id} - ${name}`);
+        console.log(`업로드 성공: ${id} - ${name}`);
       } catch (e) {
-        console.error(`❌ 업로드 실패: ${id}`, e);
+        console.error(`업로드 실패: ${id}`, e);
       }
     }
 
-    console.log("🎉 모든 업로드 완료!");
+    console.log("모든 업로드 완료");
   });
