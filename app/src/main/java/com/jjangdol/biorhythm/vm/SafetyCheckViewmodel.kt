@@ -3,7 +3,6 @@ package com.jjangdol.biorhythm.vm
 import android.app.Application
 import android.content.Context
 import android.util.Log
-import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -12,7 +11,6 @@ import com.jjangdol.biorhythm.data.UserRepository
 import com.jjangdol.biorhythm.model.*
 import com.jjangdol.biorhythm.util.ScoreCalculator
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
@@ -40,7 +37,6 @@ class SafetyCheckViewModel @Inject constructor(
 
     // 체크리스트 상태 관리용 LiveData 추가
     private val _checklistAnswers = MutableLiveData<MutableMap<String, Any>>(mutableMapOf())
-    val checklistAnswers: LiveData<MutableMap<String, Any>> = _checklistAnswers
 
     private val _checklistScore = MutableLiveData<Int>(0)
     val checklistScore: LiveData<Int> = _checklistScore
@@ -69,8 +65,6 @@ class SafetyCheckViewModel @Inject constructor(
         val prefs = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val name = prefs.getString("user_name", null)
         val empNum = prefs.getString("emp_num", null)
-
-        Log.d("SafetyCheck-userId", "이름: ${name} 사번: ${empNum}")
 
         return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
             userRepository.getUserId(name, empNum)
@@ -112,13 +106,6 @@ class SafetyCheckViewModel @Inject constructor(
         }
     }
 
-    // 체크리스트 답변 업데이트 메서드
-    fun updateChecklistAnswer(questionId: String, answer: Any) {
-        val currentAnswers = _checklistAnswers.value ?: mutableMapOf()
-        currentAnswers[questionId] = answer
-        _checklistAnswers.value = currentAnswers
-    }
-
     // 체크리스트 초기화 메서드
     fun resetChecklist() {
         // 체크리스트 관련 모든 상태 초기화
@@ -136,14 +123,6 @@ class SafetyCheckViewModel @Inject constructor(
         }
     }
 
-    // 체크리스트 완료 상태 확인 메서드
-    fun isChecklistCompleted(): Boolean {
-        val answers = _checklistAnswers.value ?: return false
-        // 필수 질문들이 모두 답변되었는지 확인하는 로직
-        // 실제 구현은 체크리스트 항목 수에 따라 조정 필요
-        return answers.size >= getRequiredQuestionCount()
-    }
-
     private fun getRequiredQuestionCount(): Int {
         // 실제 체크리스트 필수 질문 수를 반환
         // 이 값은 실제 체크리스트 구조에 맞게 조정하세요
@@ -151,16 +130,12 @@ class SafetyCheckViewModel @Inject constructor(
     }
 
     fun addMeasurementResult(result: MeasurementResult) {
-        Log.d("SafetyCheckVM", "========== addMeasurementResult ==========")
-        Log.d("SafetyCheckVM", "측정 타입: ${result.type}")
-        Log.d("SafetyCheckVM", "점수: ${result.score}")
         _currentSession.value?.let { session ->
             val updated = session.measurementResults.toMutableList()
             updated.removeAll { it.type == result.type }
             updated.add(result)
             _currentSession.value = session.copy(measurementResults = updated)
         }
-        Log.d("SafetyCheckVM", "현재 세션의 측정 결과 개수: ${_currentSession.value?.measurementResults?.size}")
     }
 
     /**

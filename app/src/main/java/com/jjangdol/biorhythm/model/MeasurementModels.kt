@@ -51,8 +51,8 @@ data class SafetyCheckResult(
 
 /* ---------- 안전 레벨 ---------- */
 enum class SafetyLevel(val displayName: String, val color: String, val minScore: Float) {
-    SAFE("안전",   "#4CAF50", 80f),
-    CAUTION("주의", "#FFC107", 60f),
+    SAFE("안전",   "#4CAF50", 70f),
+    CAUTION("주의", "#FFC107", 50f),
     DANGER("위험",  "#F44336", 0f);
 
     companion object {

@@ -49,7 +49,7 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
 
         val sessionId = args.sessionId
         val recordDate = arguments?.getString("recordDate")
-        val documentId = arguments?.getString("documentId")  // 추가
+        val documentId = arguments?.getString("documentId")
 
         if (sessionId != null) {
             val session = safetyCheckViewModel.currentSession.value
@@ -87,10 +87,10 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
         val pupilScore = session.measurementResults.find { it.type.name == "PUPIL" }?.score ?: 0f
         val ppgScore = session.measurementResults.find { it.type.name == "PPG" }?.score ?: 0f
 
-        val finalScore = com.jjangdol.biorhythm.util.ScoreCalculator.calcFinalSafetyScore(
+        val finalScore = ScoreCalculator.calcFinalSafetyScore(
             checklistScore, tremorScore, pupilScore, ppgScore
         )
-        val safetyLevel = com.jjangdol.biorhythm.model.SafetyLevel.fromScore(finalScore)
+        val safetyLevel = SafetyLevel.fromScore(finalScore)
 
         binding.tvChecklistScore.text = checklistScore.toString()
         binding.tvTremorScore.text = "${tremorScore.toInt()}점"
@@ -118,18 +118,6 @@ class ResultFragment : Fragment(R.layout.fragment_result) {
             binding.tvRiskFactors.text = riskFactors.joinToString("\n") {
                 "• ${it.description} (${it.severity})"
             }
-        }
-    }
-
-    private fun getUserEmpNum(): String? {
-        val prefs = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val name = prefs.getString("user_name", null)
-        val empNum = prefs.getString("emp_num", null)
-
-        return if (!name.isNullOrEmpty() && !empNum.isNullOrEmpty()) {
-            empNum
-        } else {
-            null
         }
     }
 
